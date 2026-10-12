@@ -35,7 +35,9 @@ import createCaseInsensitiveObject from '@fringeworks/case-insensitive-object/cr
 ### `createCaseInsensitiveObject`
 
 ```ts
-createCaseInsensitiveObject<T extends Record<string, unknown>>(options?: CreateCaseInsensitiveObjectOptions<T>): T
+createCaseInsensitiveObject<T extends object = Record<string, unknown>>(options: CreateCaseInsensitiveObjectOptions<T> & { caseSensitive: true }): KeyTransformObject<T>
+createCaseInsensitiveObject<T extends object = Record<string, unknown>>(options?: CreateCaseInsensitiveObjectOptions<T> & { caseSensitive?: false }): CaseInsensitiveObject<T>
+createCaseInsensitiveObject<T extends object = Record<string, unknown>>(options?: CreateCaseInsensitiveObjectOptions<T>): KeyTransformObject<T>
 ```
 
 Creates an object (a `Proxy`) whose keys are case-insensitive. Options of `normalizeString` from `@fringeworks/japanese-text` such as `ignoreWidth` also make it ignore differences such as full-width and half-width forms.
@@ -48,52 +50,84 @@ headers['content-type']; // 'text/html'
 'CONTENT-TYPE' in headers; // true
 ```
 
-| Option              | Type                          | Description                                                                                                                                                                    |
-| ------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `target?`           | `T`                           | An object with the initial values. Defaults to an empty object                                                                                                                 |
-| `caseSensitive?`    | `boolean`                     | If `true`, keys are case-sensitive. Defaults to `false`                                                                                                                        |
-| `storedKeyType?`    | `'transformed' \| 'original'` | The keys stored in the underlying object. `'transformed'`: the normalized key (lowercase, for example); `'original'`: the original key used first. Defaults to `'transformed'` |
-| `mutable?`          | `boolean`                     | If `true`, modifies `target` directly. Otherwise an object with the properties of `target` copied is used. Defaults to `false`                                                 |
-| `includeInherited?` | `boolean`                     | If `true`, inherited properties of `target` are included. Defaults to `false`                                                                                                  |
-| `ignore*`, ...      | `NormalizeStringOptions`      | Options of `normalizeString` from `@fringeworks/japanese-text` (except `ignoreCase`) used to normalize keys                                                                    |
+With the original keys given in `keys`, the object enumerates those keys whichever alias a property was set with.
+
+```ts
+type Headers = { 'Content-Type': string; Accept: string };
+const headers = createCaseInsensitiveObject<Headers>({
+  keys: ['Content-Type', 'Accept'],
+});
+headers['content-type'] = 'text/html';
+headers.ACCEPT = '*/*';
+JSON.stringify(headers); // '{"Content-Type":"text/html","Accept":"*/*"}'
+```
+
+| Option           | Type                            | Description                                                                                                                                                                                                                                                                                    |
+| ---------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `target?`        | `Partial<T>`                    | An object with the initial values. Its own enumerable properties are copied, and `target` itself is never modified. The keys of `target` are also treated as original keys. When several keys normalize to the same key, the first one (its key and value) is used, as in `getByNormalizedKey` |
+| `keys?`          | `readonly (keyof T & string)[]` | The original keys. They take precedence over the keys of `target`                                                                                                                                                                                                                              |
+| `caseSensitive?` | `boolean`                       | If `true`, keys are case-sensitive. Defaults to `false`                                                                                                                                                                                                                                        |
+| `enumeratedKey?` | `'original' \| 'transformed'`   | The keys returned when enumerating (`Object.keys`, spread, `JSON.stringify` and so on). `'original'`: the original key (the one in `keys` or `target`, or else the key used first); `'transformed'`: the normalized key (lowercase, for example). Defaults to `'original'`                     |
+| `ignore*`, ...   | `NormalizeStringOptions`        | Options of `normalizeString` from `@fringeworks/japanese-text` (except `ignoreCase`) used to normalize keys                                                                                                                                                                                    |
+
+#### Types
+
+The type of the returned object is inferred from `target` or given as the type parameter `T`. The keys of `T` have their value types, and other keys are `unknown`. When keys are case-insensitive, the all-lowercase and all-uppercase aliases of the original keys (`content-type`, `CONTENT-TYPE`) have the value types too. Other aliases (`Content-type`, full-width forms and so on) are `unknown`.
+
+```ts
+const headers = createCaseInsensitiveObject({
+  target: { 'Content-Type': 'text/html' },
+});
+headers['content-type']; // string | undefined
+headers['Content-type']; // unknown
+```
+
+To give types to keys that are not in `target`, specify the type parameter and `keys`. With the type parameter, the keys of `target` are also limited to the keys of `T`.
+
+#### Reflecting changes and limitations
+
+To reflect the changes back to the original object, merge it yourself (for example, `Object.assign(original, { ...headers })`).
+
+The object works as a dictionary, so it has the following limitations. They are the same for `createKeyTransformObject`.
+
+- Every property is a data property that is writable, enumerable and configurable. Defining an accessor or a property with `configurable: false` throws a `TypeError`. `writable` and `enumerable` are ignored
+- `Object.preventExtensions`, `Object.seal` and `Object.freeze` throw a `TypeError`
+- The prototype is `null`, so methods such as `toString` and `hasOwnProperty` are not available (use `Object.hasOwn` and the like instead)
 
 ### `createKeyTransformObject`
 
 ```ts
-createKeyTransformObject<T extends object>(transformKey: CreateKeyTransformObjectGetKeyFn<T>, options?: CreateKeyTransformObjectOptions<T>): any
+createKeyTransformObject<T extends object = Record<string, unknown>>(transformKey: (key: string) => string, options?: CreateKeyTransformObjectOptions<T>): KeyTransformObject<T>
 ```
 
-Creates an object (a `Proxy`) that converts keys with `transformKey` on every property access. This is the basis of `createCaseInsensitiveObject`. `transformKey` must return an already transformed key unchanged.
+Creates an object (a `Proxy`) that converts string keys with `transformKey` on every property access. This is the basis of `createCaseInsensitiveObject`. Symbol keys are used as is. `transformKey` must return an already transformed key unchanged.
 
 ```ts
-const obj = createKeyTransformObject((_, key) =>
-  typeof key === 'string' ? key.toUpperCase() : key,
-);
+const obj = createKeyTransformObject((key) => key.toUpperCase());
 obj.name = 'Alice';
 obj.NAME; // 'Alice'
 ```
 
-| Parameter      | Type                                                     | Description                     |
-| -------------- | -------------------------------------------------------- | ------------------------------- |
-| `transformKey` | `(target: T, key: string \| symbol) => string \| symbol` | A function that transforms keys |
-| `options?`     | `CreateKeyTransformObjectOptions<T>`                     | The options below               |
+Since the transformation is an arbitrary function, aliases have no types. The keys of `T` have their value types, and other keys are `unknown`.
 
-| Option              | Type                                                     | Description                                                                                                    |
-| ------------------- | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `target?`           | `T`                                                      | Same as `createCaseInsensitiveObject`                                                                          |
-| `storedKeyType?`    | `'transformed' \| 'original'`                            | Same as `createCaseInsensitiveObject`                                                                          |
-| `mutable?`          | `boolean`                                                | Same as `createCaseInsensitiveObject`                                                                          |
-| `includeInherited?` | `boolean`                                                | Same as `createCaseInsensitiveObject`                                                                          |
-| `getOriginalKey?`   | `(target: T, key: string \| symbol) => string \| symbol` | Returns the original key to store under when `storedKeyType` is `'original'`. Returns the given key by default |
-| `deleteKey?`        | `(target: T, key: string \| symbol) => void`             | Called after a property is deleted. Use it when keys are managed elsewhere                                     |
+| Parameter      | Type                                 | Description                     |
+| -------------- | ------------------------------------ | ------------------------------- |
+| `transformKey` | `(key: string) => string`            | A function that transforms keys |
+| `options?`     | `CreateKeyTransformObjectOptions<T>` | The options below               |
+
+| Option           | Type                            | Description                           |
+| ---------------- | ------------------------------- | ------------------------------------- |
+| `target?`        | `Partial<T>`                    | Same as `createCaseInsensitiveObject` |
+| `keys?`          | `readonly (keyof T & string)[]` | Same as `createCaseInsensitiveObject` |
+| `enumeratedKey?` | `'original' \| 'transformed'`   | Same as `createCaseInsensitiveObject` |
 
 ### `getByNormalizedKey`
 
 ```ts
-getByNormalizedKey<T extends Record<string, unknown>>(data: T, key: string, options?: GetByNormalizedKeyOptions): unknown
+getByNormalizedKey<T extends object>(data: T, key: string, options?: GetByNormalizedKeyOptions): T[keyof T] | undefined
 ```
 
-Compares keys after normalizing them and returns the value of the matching property. Case is ignored by default. When several keys match, returns the value of the first one found; returns `undefined` when none match.
+Compares keys after normalizing them and returns the value of the matching property. Case is ignored by default. When several keys match, returns the value of the first one found; returns `undefined` when none match. Every call normalizes all the keys of `data`, so use `createCaseInsensitiveObject` to look up the same object repeatedly.
 
 ```ts
 getByNormalizedKey({ UserName: 'A' }, 'username'); // 'A'
@@ -107,10 +141,10 @@ getByNormalizedKey({ UserName: 'A' }, 'username'); // 'A'
 ### `setByNormalizedKey`
 
 ```ts
-setByNormalizedKey<T extends Record<string, unknown>>(data: T, key: string, value: unknown, options?: SetByNormalizedKeyOptions): T
+setByNormalizedKey<T extends object>(data: T, key: string, value: T[keyof T], options?: SetByNormalizedKeyOptions): T
 ```
 
-Compares keys after normalizing them and sets the value on the matching property (mutating). When no key matches, adds a property with `key` as is. Returns `data`. The options are the same as `getByNormalizedKey`.
+Compares keys after normalizing them and sets the value on the matching property (mutating). When no key matches, adds a property with `key` as is. Returns `data`. The options are the same as `getByNormalizedKey`. Like `getByNormalizedKey`, every call normalizes all the keys of `data`.
 
 ```ts
 setByNormalizedKey({ UserName: 'A' }, 'USERNAME', 'B'); // { UserName: 'B' }
@@ -118,15 +152,15 @@ setByNormalizedKey({ UserName: 'A' }, 'USERNAME', 'B'); // { UserName: 'B' }
 
 ### Types
 
-| Type                                     | Description                                                                    |
-| ---------------------------------------- | ------------------------------------------------------------------------------ |
-| `CreateCaseInsensitiveObjectOptions<T>`  | Options for `createCaseInsensitiveObject`                                      |
-| `CreateKeyTransformObjectOptions<T>`     | Options for `createKeyTransformObject`                                         |
-| `CreateKeyTransformObjectOptionsBase<T>` | Options shared by `createKeyTransformObject` and `createCaseInsensitiveObject` |
-| `CreateKeyTransformObjectGetKeyFn<T>`    | A function returning a key `(target, key) => string \| symbol`                 |
-| `CreateKeyTransformObjectDeleteKeyFn<T>` | A function called after a key is deleted `(target, key) => void`               |
-| `GetByNormalizedKeyOptions`              | Options for `getByNormalizedKey`                                               |
-| `SetByNormalizedKeyOptions`              | Options for `setByNormalizedKey`                                               |
+| Type                                    | Description                                                                  |
+| --------------------------------------- | ---------------------------------------------------------------------------- |
+| `CreateCaseInsensitiveObjectOptions<T>` | Options for `createCaseInsensitiveObject`                                    |
+| `CaseInsensitiveObject<T>`              | The object returned by `createCaseInsensitiveObject` (aliases are typed)     |
+| `CaseAliases<T>`                        | The all-lowercase and all-uppercase aliases of the keys of `T`               |
+| `CreateKeyTransformObjectOptions<T>`    | Options for `createKeyTransformObject`                                       |
+| `KeyTransformObject<T>`                 | The object returned by `createKeyTransformObject` (other keys are `unknown`) |
+| `GetByNormalizedKeyOptions`             | Options for `getByNormalizedKey`                                             |
+| `SetByNormalizedKeyOptions`             | Options for `setByNormalizedKey`                                             |
 
 ## License
 

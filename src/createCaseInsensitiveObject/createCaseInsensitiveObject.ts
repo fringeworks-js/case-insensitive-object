@@ -1,63 +1,53 @@
-import type { NormalizeStringOptions } from '@fringeworks/japanese-text/normalizeString';
-import * as R from 'remeda';
-import {
-  _deleteOriginalKey,
-  _getOriginalKey,
-  _getTransformedKey,
-  _resolveOriginalKey,
-} from '../_internal/_normalizedKeyHelpers';
+import { normalizeString } from '@fringeworks/japanese-text/normalizeString';
+import { _memoizeString } from '../_internal/_memoizeString';
+import { _createNormalizeOptions } from '../_internal/_normalizedKeyHelpers';
+import type { KeyTransformObject } from '../createKeyTransformObject';
 import { createKeyTransformObject } from '../createKeyTransformObject';
-import type { CreateCaseInsensitiveObjectOptions } from './types';
+import type {
+  CaseInsensitiveObject,
+  CreateCaseInsensitiveObjectOptions,
+} from './types';
 
 /**
- * キーの大文字・小文字を意識しないオブジェクトを作成する
+ * 正規化したキーをキャッシュする件数の上限（オブジェクトごと）
+ */
+const CACHE_LIMIT = 128;
+
+/**
+ * キーの大文字・小文字を意識しないオブジェクトを作成する\
+ * 大文字・小文字を区別しない場合は、全部小文字・全部大文字の別名にも型が付く
  *
  * @param options
  * @returns
  */
 export default function createCaseInsensitiveObject<
-  T extends Record<string, unknown>,
->(options: CreateCaseInsensitiveObjectOptions<T> = {}): T {
-  const {
-    target = {} as T,
-    includeInherited,
-    mutable,
-    storedKeyType = 'transformed',
-    caseSensitive = false,
-    ...rest
-  } = options;
-  const normalizeOptions: NormalizeStringOptions = {
-    ...rest,
-    ignoreCase: !caseSensitive,
-  };
-  // オブジェクトに設定するキーの取得関数
-  const transformKey = (data, key) => {
-    if (R.isString(key)) {
-      return _getTransformedKey(key, data, normalizeOptions);
-    }
-    return key;
-  };
-  // 主となる正規化前のキーを取得
-  const getOriginalKey = (data, key) => {
-    if (R.isString(key)) {
-      return _resolveOriginalKey(key, data, normalizeOptions);
-    }
-    return key;
-  };
-  // キーが削除されたときの処理
-  const deleteKey = (data, key) => {
-    if (R.isString(key)) {
-      _deleteOriginalKey(key, data, normalizeOptions);
-    }
-  };
+  T extends object = Record<string, unknown>,
+>(
+  options: CreateCaseInsensitiveObjectOptions<T> & { caseSensitive: true },
+): KeyTransformObject<T>;
+export default function createCaseInsensitiveObject<
+  T extends object = Record<string, unknown>,
+>(
+  options?: CreateCaseInsensitiveObjectOptions<T> & { caseSensitive?: false },
+): CaseInsensitiveObject<T>;
+export default function createCaseInsensitiveObject<
+  T extends object = Record<string, unknown>,
+>(options?: CreateCaseInsensitiveObjectOptions<T>): KeyTransformObject<T>;
+export default function createCaseInsensitiveObject<T extends object>(
+  options: CreateCaseInsensitiveObjectOptions<T> = {},
+): KeyTransformObject<T> {
+  const { target, keys, enumeratedKey, ...rest } = options;
+  const normalizeOptions = _createNormalizeOptions(rest);
 
-  // 正規化前のキーで値を持つオブジェクトのproxyを作成
+  // normalizeString は比較的重いので、件数を抑えてキャッシュする
+  const transformKey = _memoizeString(
+    (key) => normalizeString(key, normalizeOptions),
+    CACHE_LIMIT,
+  );
+
   return createKeyTransformObject(transformKey, {
     target,
-    getOriginalKey,
-    deleteKey,
-    storedKeyType,
-    mutable,
-    includeInherited,
+    keys,
+    enumeratedKey,
   });
 }

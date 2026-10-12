@@ -1,102 +1,168 @@
 import type {
-  CreateKeyTransformObjectGetKeyFn,
   CreateKeyTransformObjectOptions,
+  KeyTransformObject,
 } from './types';
 
-const DEFAULT_GET_ORIGINAL_KEY = (_: unknown, key: string | symbol) => key;
+/**
+ * 格納しているプロパティ
+ */
+type Entry = {
+  /**
+   * 本来のキー（keys や target にあればそのキー、なければ最初に使われたキー）
+   */
+  key: string | symbol;
+  value: unknown;
+};
+
+/**
+ * データプロパティのディスクリプターを作る\
+ * プロパティは常に書き換え・列挙・再定義が可能なものとして扱う
+ */
+const createDataDescriptor = (value: unknown): PropertyDescriptor => ({
+  value,
+  writable: true,
+  enumerable: true,
+  configurable: true,
+});
 
 /**
  * 変換されたキーでプロパティを管理するオブジェクトのproxyを作る
  *
- * @param transformKey キーを変換する為の関数。変換後のキーを渡した場合には変換せず返す必要がある
+ * プロパティは proxy の内部で管理し、target には書き込まない。
+ * 別名のキーでも一貫して動作させるため、次の制限がある
+ *
+ * - プロパティは常に書き換え・列挙・再定義が可能なデータプロパティ。
+ *   アクセサーや `configurable: false` の定義は TypeError になる
+ * - `Object.preventExtensions` / `seal` / `freeze` は TypeError になる
+ * - プロトタイプは null
+ *
+ * @param transformKey キーを変換する関数。変換後のキーを渡した場合にはそのまま返す必要がある
  * @param options オプション
  * @returns
  */
-export default function createKeyTransformObject<T extends object>(
-  transformKey: CreateKeyTransformObjectGetKeyFn<T>,
+export default function createKeyTransformObject<
+  T extends object = Record<string, unknown>,
+>(
+  transformKey: (key: string) => string,
   options: CreateKeyTransformObjectOptions<T> = {},
-) {
-  const {
-    target = {} as T,
-    getOriginalKey = DEFAULT_GET_ORIGINAL_KEY,
-    deleteKey,
-    storedKeyType = 'transformed',
-    mutable,
-    includeInherited,
-  } = options;
+): KeyTransformObject<T> {
+  const { target, keys = [], enumeratedKey = 'original' } = options;
 
-  // 初期値の退避
-  const clone = includeInherited
-    ? (obj) =>
-        Object.assign(Object.create(Object.getPrototypeOf(obj)), { ...obj })
-    : (obj) => ({ ...obj });
-  const targetObject = mutable ? target : clone(target);
-  const has = includeInherited
-    ? () => true
-    : (object, key) => Object.hasOwn(object, key);
-  const initialValues: Partial<T> = {};
-  for (const key in targetObject) {
-    if (has(targetObject, key)) {
-      initialValues[key] = targetObject[key];
-      delete targetObject[key];
+  // 変換後のキー → プロパティ
+  const entries = new Map<string | symbol, Entry>();
+  // 変換後のキー → 本来のキー
+  const originalKeys = new Map<string | symbol, string | symbol>();
+  const toEntryKey = (key: string | symbol) =>
+    typeof key === 'string' ? transformKey(key) : key;
+  // 変換後のキーが重なる場合は、getByNormalizedKey に合わせて最初のものを使う
+  const addOriginalKey = (key: string | symbol) => {
+    const entryKey = toEntryKey(key);
+    if (!originalKeys.has(entryKey)) {
+      originalKeys.set(entryKey, key);
+    }
+  };
+  const setValue = (key: string | symbol, value: unknown) => {
+    const entryKey = toEntryKey(key);
+    const entry = entries.get(entryKey);
+    if (entry) {
+      entry.value = value;
+    } else {
+      entries.set(entryKey, {
+        key: originalKeys.get(entryKey) ?? key,
+        value,
+      });
+    }
+  };
+
+  // 本来のキーを登録（keys を target より優先する）
+  for (const key of keys) {
+    addOriginalKey(key);
+  }
+  // 初期値をコピー
+  if (target) {
+    const source = target as Record<string | symbol, unknown>;
+    for (const key of Reflect.ownKeys(source)) {
+      if (Object.prototype.propertyIsEnumerable.call(source, key)) {
+        addOriginalKey(key);
+        if (!entries.has(toEntryKey(key))) {
+          setValue(key, source[key]);
+        }
+      }
     }
   }
 
-  const resolveKey =
-    storedKeyType === 'original' ? getOriginalKey : transformKey;
-
-  const handler: ProxyHandler<T> = {
-    // プロパティの設定時
-    set(object, key, value) {
-      // setter 内の this を proxy でなく target に向けることで、
-      // setter 内部のアクセスはキー変換を経由させない
-      return Reflect.set(object, resolveKey(object, key), value);
-    },
+  const handler: ProxyHandler<object> = {
     // プロパティの取得時
-    get(object, key) {
-      // getter 内の this を proxy でなく target に向けることで、
-      // getter 内部のアクセスはキー変換を経由させない
-      return Reflect.get(object, resolveKey(object, key));
+    get(_, key) {
+      return entries.get(toEntryKey(key))?.value;
+    },
+    // プロパティの設定時
+    set(_, key, value, receiver) {
+      if (receiver !== proxy) {
+        // プロトタイプとして使われた場合は、通常のオブジェクトと同様に代入先に定義する
+        return Reflect.defineProperty(
+          receiver,
+          key,
+          createDataDescriptor(value),
+        );
+      }
+      setValue(key, value);
+      return true;
     },
     // プロパティの有無判定
-    has(object, key) {
-      return Reflect.has(object, resolveKey(object, key));
+    has(_, key) {
+      return entries.has(toEntryKey(key));
     },
     // プロパティの削除時
-    deleteProperty(object, key) {
-      const result = Reflect.deleteProperty(object, resolveKey(object, key));
-      if (deleteKey && result) {
-        deleteKey(object, key);
-      }
-      return result;
-    },
-    // プロパティの定義取得時
-    getOwnPropertyDescriptor: (object, key) => {
-      return Reflect.getOwnPropertyDescriptor(object, resolveKey(object, key));
-    },
-    // プロパティの定義
-    defineProperty(
-      object: T,
-      key: string | symbol,
-      attributes: PropertyDescriptor,
-    ) {
-      return Reflect.defineProperty(
-        object,
-        resolveKey(object, key),
-        attributes,
-      );
+    deleteProperty(_, key) {
+      entries.delete(toEntryKey(key));
+      return true;
     },
     // プロパティの列挙時
-    ownKeys: (object) => {
-      return Reflect.ownKeys(object);
+    ownKeys() {
+      return enumeratedKey === 'original'
+        ? Array.from(entries.values(), (entry) => entry.key)
+        : Array.from(entries.keys());
+    },
+    // プロパティの定義取得時
+    getOwnPropertyDescriptor(_, key) {
+      const entry = entries.get(toEntryKey(key));
+      return entry ? createDataDescriptor(entry.value) : undefined;
+    },
+    // プロパティの定義
+    defineProperty(_, key, attributes) {
+      if ('get' in attributes || 'set' in attributes) {
+        throw new TypeError(
+          `Cannot define property ${String(key)}: accessor properties are not supported`,
+        );
+      }
+      if (attributes.configurable === false) {
+        throw new TypeError(
+          `Cannot define property ${String(key)}: non-configurable properties are not supported`,
+        );
+      }
+      if ('value' in attributes || !entries.has(toEntryKey(key))) {
+        setValue(key, attributes.value);
+      }
+      return true;
+    },
+    // 拡張の禁止
+    preventExtensions() {
+      throw new TypeError(
+        'Cannot prevent extensions: preventExtensions, seal and freeze are not supported',
+      );
+    },
+    // プロトタイプの設定
+    setPrototypeOf(_, prototype) {
+      if (prototype !== null) {
+        throw new TypeError(
+          'Cannot set prototype: only null is supported as the prototype',
+        );
+      }
+      return true;
     },
   };
 
-  const proxy = new Proxy(targetObject, handler);
-  // 初期値を設定
-  for (const key in initialValues) {
-    proxy[key] = initialValues[key];
-  }
-
-  return proxy;
+  const proxy = new Proxy(Object.create(null) as object, handler);
+  return proxy as KeyTransformObject<T>;
 }

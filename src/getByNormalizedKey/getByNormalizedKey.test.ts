@@ -23,8 +23,8 @@ describe('getByNormalizedKey', () => {
     expect(getByNormalizedKey({ a: 1 }, 'b')).toBeUndefined();
   });
 
-  it('nullを渡した場合はnullを返す', () => {
-    expect(getByNormalizedKey(null as any, 'key')).toBeNull();
+  it('nullを渡した場合はundefinedを返す', () => {
+    expect(getByNormalizedKey(null as any, 'key')).toBeUndefined();
   });
 
   it('継承プロパティは検索対象にならない', () => {

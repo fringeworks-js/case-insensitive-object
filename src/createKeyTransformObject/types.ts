@@ -1,76 +1,34 @@
 /**
  * オプション
  */
-export type CreateKeyTransformObjectOptions<T extends object> =
-  CreateKeyTransformObjectOptionsBase<T> & {
-    /**
-     * 変換前のキーを取得する関数\
-     * 未指定の場合は渡されたキーをそのまま返す
-     */
-    getOriginalKey?: CreateKeyTransformObjectGetKeyFn<T>;
-
-    /**
-     * キーの削除をする関数\
-     * 外部でキーの管理をしている場合に利用
-     */
-    deleteKey?: CreateKeyTransformObjectDeleteKeyFn<T>;
-  };
-
-export type CreateKeyTransformObjectOptionsBase<T extends object> = {
+export type CreateKeyTransformObjectOptions<T extends object> = {
   /**
-   * 対象のオブジェクト
-   * 未指定の場合は空のオブジェクトを新規で作成
+   * 初期値を持つオブジェクト\
+   * 自身の列挙可能なプロパティをコピーする。target 自体は変更しない。
+   * target のキーも本来のキーとして扱う
    */
-  target?: T;
+  target?: Partial<T>;
 
   /**
-   * 実体のオブジェクトに設定されるキーの種別
-   *
-   * - 'transformed': 正規化されたキー
-   * - 'original': 正規化前のキー
+   * 本来のキー\
+   * どの別名で設定しても、列挙するときはこのキーを使う
    */
-  storedKeyType?: 'transformed' | 'original';
+  keys?: readonly (keyof T & string)[];
 
   /**
-   * targetを直接編集するか\
-   * targetが指定されている場合にのみ有効
+   * 列挙するときのキーの種別
    *
-   * - false: targetからプロパティをコピーしたオブジェクトを編集する
-   * - true: targetを編集する
-   * @default false
+   * - 'original': 本来のキー（keys や target にあればそのキー、なければ最初に使われたキー）
+   * - 'transformed': 変換後のキー
+   * @default 'original'
    */
-  mutable?: boolean;
-
-  /**
-   * 継承されたプロパティを管理対象とするか\
-   * targetが指定されている場合にのみ有効
-   *
-   * - fales: 管理対象としない
-   * - true: 管理対象とする
-   *
-   * @default false
-   */
-  includeInherited?: boolean;
+  enumeratedKey?: 'original' | 'transformed';
 };
 
 /**
- * キーの取得関数
- *
- * @param target 対象のオブジェクト
- * @param key 変換前のキー
+ * createKeyTransformObject が返すオブジェクトの型\
+ * 定義したキーには値の型が付き、定義外のキーは unknown になる
  */
-export type CreateKeyTransformObjectGetKeyFn<T> = (
-  target: T,
-  key: string | symbol,
-) => string | symbol;
-
-/**
- * キーの削除関数
- *
- * @param target 対象のオブジェクト
- * @param key 変換前のキー
- */
-export type CreateKeyTransformObjectDeleteKeyFn<T> = (
-  target: T,
-  key: string | symbol,
-) => void;
+export type KeyTransformObject<T extends object> = Partial<T> & {
+  [key: string]: unknown;
+};

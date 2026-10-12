@@ -1,5 +1,7 @@
-import type { NormalizeStringOptions } from '@fringeworks/japanese-text/normalizeString';
-import { _getTransformedKey } from '../_internal/_normalizedKeyHelpers';
+import {
+  _createNormalizeOptions,
+  _findNormalizedKey,
+} from '../_internal/_normalizedKeyHelpers';
 import type { GetByNormalizedKeyOptions } from './types';
 
 /**
@@ -11,30 +13,18 @@ import type { GetByNormalizedKeyOptions } from './types';
  * @param options 正規化オプション
  * @returns 見つかった値。存在しない場合は undefined
  */
-export default function getByNormalizedKey<T extends Record<string, unknown>>(
+export default function getByNormalizedKey<T extends object>(
   data: T,
   key: string,
   options: GetByNormalizedKeyOptions = {},
-): unknown {
+): T[keyof T] | undefined {
   if (!data) {
-    return data;
+    return undefined;
   }
-  const { caseSensitive = false, ...rest } = options;
-  const normalizeOptions: NormalizeStringOptions = {
-    ...rest,
-    ignoreCase: !caseSensitive,
-  };
-  const normalizedKey = _getTransformedKey(key, data, normalizeOptions);
-  for (const existingKey in data) {
-    if (Object.hasOwn(data, existingKey)) {
-      if (
-        _getTransformedKey(existingKey, data, normalizeOptions) ===
-        normalizedKey
-      ) {
-        return data[existingKey];
-      }
-    }
-  }
-
-  return undefined;
+  const existingKey = _findNormalizedKey(
+    data,
+    key,
+    _createNormalizeOptions(options),
+  );
+  return existingKey === undefined ? undefined : data[existingKey as keyof T];
 }

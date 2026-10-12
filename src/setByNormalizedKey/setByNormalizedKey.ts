@@ -1,6 +1,7 @@
-import type { NormalizeStringOptions } from '@fringeworks/japanese-text/normalizeString';
-import { unsafeCast } from '@fringeworks/utils/type/unsafeCast';
-import { _getTransformedKey } from '../_internal/_normalizedKeyHelpers';
+import {
+  _createNormalizeOptions,
+  _findNormalizedKey,
+} from '../_internal/_normalizedKeyHelpers';
 import type { SetByNormalizedKeyOptions } from './types';
 
 /**
@@ -10,33 +11,18 @@ import type { SetByNormalizedKeyOptions } from './types';
  * @param value 設定する値
  * @param options オプション
  */
-export default function setByNormalizedKey<T extends Record<string, unknown>>(
+export default function setByNormalizedKey<T extends object>(
   data: T,
   key: string,
-  value: unknown,
+  value: T[keyof T],
   options: SetByNormalizedKeyOptions = {},
 ): T {
   if (!data) {
     return data;
   }
-  const { caseSensitive = false, ...rest } = options;
-  const normalizeOptions: NormalizeStringOptions = {
-    ...rest,
-    ignoreCase: !caseSensitive,
-  };
-  const normalizedKey = _getTransformedKey(key, data, normalizeOptions);
-  for (const existingKey in data) {
-    if (Object.hasOwn(data, existingKey)) {
-      if (
-        _getTransformedKey(existingKey, data, normalizeOptions) ===
-        normalizedKey
-      ) {
-        data[existingKey] = unsafeCast(value);
-        return data;
-      }
-    }
-  }
-  data[key as keyof T] = unsafeCast(value);
+  const existingKey =
+    _findNormalizedKey(data, key, _createNormalizeOptions(options)) ?? key;
+  (data as Record<string, unknown>)[existingKey] = value;
 
   return data;
 }
