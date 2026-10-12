@@ -13,9 +13,9 @@ describe('setByNormalizedKey', () => {
     expect(data['name']).toBe('Bob');
   });
 
-  it('caseSensitive: trueで大文字・小文字を区別する', () => {
+  it('ignoreCase: falseで大文字・小文字を区別する', () => {
     const data: Record<string, unknown> = { Name: 'Alice' };
-    setByNormalizedKey(data, 'name', 'Bob', { caseSensitive: true });
+    setByNormalizedKey(data, 'name', 'Bob', { ignoreCase: false });
     expect(data['Name']).toBe('Alice');
     expect(data['name']).toBe('Bob');
   });

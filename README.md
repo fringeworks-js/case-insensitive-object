@@ -35,12 +35,12 @@ import createCaseInsensitiveObject from '@fringeworks/case-insensitive-object/cr
 ### `createCaseInsensitiveObject`
 
 ```ts
-createCaseInsensitiveObject<T extends object = Record<string, unknown>>(options: CreateCaseInsensitiveObjectOptions<T> & { caseSensitive: true }): KeyTransformObject<T>
-createCaseInsensitiveObject<T extends object = Record<string, unknown>>(options?: CreateCaseInsensitiveObjectOptions<T> & { caseSensitive?: false }): CaseInsensitiveObject<T>
+createCaseInsensitiveObject<T extends object = Record<string, unknown>>(options: CreateCaseInsensitiveObjectOptions<T> & { ignoreCase: false }): KeyTransformObject<T>
+createCaseInsensitiveObject<T extends object = Record<string, unknown>>(options?: CreateCaseInsensitiveObjectOptions<T> & { ignoreCase?: true }): CaseInsensitiveObject<T>
 createCaseInsensitiveObject<T extends object = Record<string, unknown>>(options?: CreateCaseInsensitiveObjectOptions<T>): KeyTransformObject<T>
 ```
 
-Creates an object (a `Proxy`) whose keys are case-insensitive. Options of `normalizeString` from `@fringeworks/japanese-text` such as `ignoreWidth` also make it ignore differences such as full-width and half-width forms.
+Creates an object (a `Proxy`) whose keys are case-insensitive. Options such as `ignoreWidth` also make it ignore differences such as full-width and half-width forms and separators (`-`, `_` and `.`).
 
 ```ts
 const headers = createCaseInsensitiveObject({
@@ -62,13 +62,16 @@ headers.ACCEPT = '*/*';
 JSON.stringify(headers); // '{"Content-Type":"text/html","Accept":"*/*"}'
 ```
 
-| Option           | Type                            | Description                                                                                                                                                                                                                                                                                    |
-| ---------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `target?`        | `Partial<T>`                    | An object with the initial values. Its own enumerable properties are copied, and `target` itself is never modified. The keys of `target` are also treated as original keys. When several keys normalize to the same key, the first one (its key and value) is used, as in `getByNormalizedKey` |
-| `keys?`          | `readonly (keyof T & string)[]` | The original keys. They take precedence over the keys of `target`                                                                                                                                                                                                                              |
-| `caseSensitive?` | `boolean`                       | If `true`, keys are case-sensitive. Defaults to `false`                                                                                                                                                                                                                                        |
-| `enumeratedKey?` | `'original' \| 'transformed'`   | The keys returned when enumerating (`Object.keys`, spread, `JSON.stringify` and so on). `'original'`: the original key (the one in `keys` or `target`, or else the key used first); `'transformed'`: the normalized key (lowercase, for example). Defaults to `'original'`                     |
-| `ignore*`, ...   | `NormalizeStringOptions`        | Options of `normalizeString` from `@fringeworks/japanese-text` (except `ignoreCase`) used to normalize keys                                                                                                                                                                                    |
+| Option              | Type                            | Description                                                                                                                                                                                                                                                                                    |
+| ------------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `target?`           | `Partial<T>`                    | An object with the initial values. Its own enumerable properties are copied, and `target` itself is never modified. The keys of `target` are also treated as original keys. When several keys normalize to the same key, the first one (its key and value) is used, as in `getByNormalizedKey` |
+| `keys?`             | `readonly (keyof T & string)[]` | The original keys. They take precedence over the keys of `target`                                                                                                                                                                                                                              |
+| `enumeratedKey?`    | `'original' \| 'transformed'`   | The keys returned when enumerating (`Object.keys`, spread, `JSON.stringify` and so on). `'original'`: the original key (the one in `keys` or `target`, or else the key used first); `'transformed'`: the normalized key (lowercase, for example). Defaults to `'original'`                     |
+| `ignoreCase?`       | `boolean`                       | Ignores uppercase and lowercase differences. Defaults to `true`                                                                                                                                                                                                                                |
+| `ignoreWidth?`      | `boolean`                       | Ignores full-width and half-width differences (`Ａ` and `A`, `ｱ` and `ア`, ...). Compatibility characters such as `㈱` are not converted                                                                                                                                                       |
+| `ignoreKana?`       | `boolean`                       | Ignores hiragana and katakana differences                                                                                                                                                                                                                                                      |
+| `ignoreSpace?`      | `boolean`                       | Ignores whitespace other than line breaks (half-width and full-width spaces, tabs, ...)                                                                                                                                                                                                        |
+| `ignoreSeparators?` | `boolean`                       | Ignores separators (`-`, `_` and `.`), so `content-type` and `contentType` become the same key                                                                                                                                                                                                 |
 
 #### Types
 
@@ -133,10 +136,13 @@ Compares keys after normalizing them and returns the value of the matching prope
 getByNormalizedKey({ UserName: 'A' }, 'username'); // 'A'
 ```
 
-| Option           | Type                     | Description                                                                          |
-| ---------------- | ------------------------ | ------------------------------------------------------------------------------------ |
-| `caseSensitive?` | `boolean`                | If `true`, keys are case-sensitive. Defaults to `false`                              |
-| `ignore*`, ...   | `NormalizeStringOptions` | Options of `normalizeString` from `@fringeworks/japanese-text` (except `ignoreCase`) |
+| Option              | Type      | Description                                                                                                                              |
+| ------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `ignoreCase?`       | `boolean` | Ignores uppercase and lowercase differences. Defaults to `true`                                                                          |
+| `ignoreWidth?`      | `boolean` | Ignores full-width and half-width differences (`Ａ` and `A`, `ｱ` and `ア`, ...). Compatibility characters such as `㈱` are not converted |
+| `ignoreKana?`       | `boolean` | Ignores hiragana and katakana differences                                                                                                |
+| `ignoreSpace?`      | `boolean` | Ignores whitespace other than line breaks (half-width and full-width spaces, tabs, ...)                                                  |
+| `ignoreSeparators?` | `boolean` | Ignores separators (`-`, `_` and `.`), so `content-type` and `contentType` become the same key                                           |
 
 ### `setByNormalizedKey`
 
@@ -152,15 +158,16 @@ setByNormalizedKey({ UserName: 'A' }, 'USERNAME', 'B'); // { UserName: 'B' }
 
 ### Types
 
-| Type                                    | Description                                                                  |
-| --------------------------------------- | ---------------------------------------------------------------------------- |
-| `CreateCaseInsensitiveObjectOptions<T>` | Options for `createCaseInsensitiveObject`                                    |
-| `CaseInsensitiveObject<T>`              | The object returned by `createCaseInsensitiveObject` (aliases are typed)     |
-| `CaseAliases<T>`                        | The all-lowercase and all-uppercase aliases of the keys of `T`               |
-| `CreateKeyTransformObjectOptions<T>`    | Options for `createKeyTransformObject`                                       |
-| `KeyTransformObject<T>`                 | The object returned by `createKeyTransformObject` (other keys are `unknown`) |
-| `GetByNormalizedKeyOptions`             | Options for `getByNormalizedKey`                                             |
-| `SetByNormalizedKeyOptions`             | Options for `setByNormalizedKey`                                             |
+| Type                                    | Description                                                                                                        |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `CreateCaseInsensitiveObjectOptions<T>` | Options for `createCaseInsensitiveObject`                                                                          |
+| `CaseInsensitiveObject<T>`              | The object returned by `createCaseInsensitiveObject` (aliases are typed)                                           |
+| `CaseAliases<T>`                        | The all-lowercase and all-uppercase aliases of the keys of `T`                                                     |
+| `CreateKeyTransformObjectOptions<T>`    | Options for `createKeyTransformObject`                                                                             |
+| `KeyTransformObject<T>`                 | The object returned by `createKeyTransformObject` (other keys are `unknown`)                                       |
+| `NormalizeKeyOptions`                   | Options to normalize keys (shared by `createCaseInsensitiveObject`, `getByNormalizedKey` and `setByNormalizedKey`) |
+| `GetByNormalizedKeyOptions`             | Options for `getByNormalizedKey`                                                                                   |
+| `SetByNormalizedKeyOptions`             | Options for `setByNormalizedKey`                                                                                   |
 
 ## License
 

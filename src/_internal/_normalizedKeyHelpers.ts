@@ -1,23 +1,38 @@
 import type { NormalizeStringOptions } from '@fringeworks/japanese-text/normalizeString';
 import { normalizeString } from '@fringeworks/japanese-text/normalizeString';
+import { hasOwn } from '@fringeworks/utils/object/hasOwn';
+import type { NormalizeKeyOptions } from '../types';
 
 /**
- * caseSensitive を含むオプション
+ * 区切り文字
  */
-type CaseSensitiveOptions = Omit<NormalizeStringOptions, 'ignoreCase'> & {
-  caseSensitive?: boolean;
-};
+const SEPARATORS = /[-_.]/g;
 
 /**
- * caseSensitive を含むオプションから normalizeString のオプションを作る
+ * キーを正規化する関数を作る
  * @param options
  * @returns
  */
-export function _createNormalizeOptions(
-  options: CaseSensitiveOptions,
-): NormalizeStringOptions {
-  const { caseSensitive = false, ...rest } = options;
-  return { ...rest, ignoreCase: !caseSensitive };
+export function _createKeyNormalizer(
+  options: NormalizeKeyOptions,
+): (key: string) => string {
+  const {
+    ignoreCase = true,
+    ignoreWidth = false,
+    ignoreKana = false,
+    ignoreSpace = false,
+    ignoreSeparators = false,
+  } = options;
+  const normalizeOptions: NormalizeStringOptions = {
+    ignoreCase,
+    ignoreWidth,
+    ignoreKana,
+    ignoreSpace,
+  };
+  // 全角の区切り文字も除去できるよう、区切り文字は normalizeString の後に除去する
+  return ignoreSeparators
+    ? (key) => normalizeString(key, normalizeOptions).replace(SEPARATORS, '')
+    : (key) => normalizeString(key, normalizeOptions);
 }
 
 /**
@@ -25,20 +40,17 @@ export function _createNormalizeOptions(
  * 複数ある場合は最初に見つかったキーを返す
  * @param data
  * @param key
- * @param options
+ * @param normalize キーを正規化する関数
  * @returns 見つからない場合は undefined
  */
 export function _findNormalizedKey(
   data: object,
   key: string,
-  options: NormalizeStringOptions,
+  normalize: (key: string) => string,
 ): string | undefined {
-  const normalizedKey = normalizeString(key, options);
+  const normalizedKey = normalize(key);
   for (const existingKey in data) {
-    if (
-      Object.hasOwn(data, existingKey) &&
-      normalizeString(existingKey, options) === normalizedKey
-    ) {
+    if (hasOwn(data, existingKey) && normalize(existingKey) === normalizedKey) {
       return existingKey;
     }
   }

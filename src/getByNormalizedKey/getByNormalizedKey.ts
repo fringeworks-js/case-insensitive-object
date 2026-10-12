@@ -1,5 +1,5 @@
 import {
-  _createNormalizeOptions,
+  _createKeyNormalizer,
   _findNormalizedKey,
 } from '../_internal/_normalizedKeyHelpers';
 import type { GetByNormalizedKeyOptions } from './types';
@@ -24,7 +24,7 @@ export default function getByNormalizedKey<T extends object>(
   const existingKey = _findNormalizedKey(
     data,
     key,
-    _createNormalizeOptions(options),
+    _createKeyNormalizer(options),
   );
   return existingKey === undefined ? undefined : data[existingKey as keyof T];
 }

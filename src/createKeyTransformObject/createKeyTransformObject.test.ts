@@ -1,3 +1,4 @@
+import { hasOwn } from '@fringeworks/utils/object/hasOwn';
 import createKeyTransformObject from './createKeyTransformObject';
 
 const toLower = (key: string) => key.toLowerCase();
@@ -267,11 +268,11 @@ describe('createKeyTransformObject', () => {
       expect(Object.getOwnPropertyDescriptor(obj, 'age')).toBeUndefined();
     });
 
-    it('Object.hasOwnが別名のキーで動作する', () => {
+    it('hasOwnが別名のキーで動作する', () => {
       const obj = createKeyTransformObject(toLower);
       obj['Name'] = 'Alice';
-      expect(Object.hasOwn(obj, 'NAME')).toBe(true);
-      expect(Object.hasOwn(obj, 'age')).toBe(false);
+      expect(hasOwn(obj, 'NAME')).toBe(true);
+      expect(hasOwn(obj, 'age')).toBe(false);
     });
 
     it('Object.definePropertyが別名のキーで動作する', () => {
@@ -336,7 +337,7 @@ describe('createKeyTransformObject', () => {
     it('Object.freezeはTypeErrorになり、その後も別名のキーで調べられる', () => {
       const obj = createKeyTransformObject(toLower, { target: { foo: 1 } });
       expect(() => Object.freeze(obj)).toThrow(TypeError);
-      expect(Object.hasOwn(obj, 'FOO')).toBe(true);
+      expect(hasOwn(obj, 'FOO')).toBe(true);
       obj['FOO'] = 2;
       expect(obj['foo']).toBe(2);
     });

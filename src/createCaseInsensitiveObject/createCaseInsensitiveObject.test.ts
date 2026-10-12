@@ -1,3 +1,4 @@
+import { hasOwn } from '@fringeworks/utils/object/hasOwn';
 import { getByNormalizedKey } from '../getByNormalizedKey';
 import createCaseInsensitiveObject from './createCaseInsensitiveObject';
 
@@ -30,10 +31,10 @@ describe('createCaseInsensitiveObject', () => {
     expect(obj['Name']).toBeUndefined();
   });
 
-  it('caseSensitive: trueで大文字・小文字を区別する', () => {
+  it('ignoreCase: falseで大文字・小文字を区別する', () => {
     const obj = createCaseInsensitiveObject({
       target: { Name: 'Alice' },
-      caseSensitive: true,
+      ignoreCase: false,
     });
     expect(obj['name']).toBeUndefined();
     expect(obj['Name']).toBe('Alice');
@@ -100,24 +101,85 @@ describe('createCaseInsensitiveObject', () => {
     expect(obj['AGE']).toBe(20);
   });
 
-  it('normalizeStringのオプションでキーを正規化する', () => {
-    const obj = createCaseInsensitiveObject({
-      target: { ＡＢＣ: 1 },
-      ignoreWidth: true,
+  describe('キーの正規化のオプション', () => {
+    it('ignoreWidthで全角・半角の違いを無視する', () => {
+      const obj = createCaseInsensitiveObject({
+        target: { ＡＢＣ: 1, ｱｲﾃﾑ: 2 },
+        ignoreWidth: true,
+      });
+      expect(obj['abc']).toBe(1);
+      expect(obj['アイテム']).toBe(2);
     });
-    expect(obj['abc']).toBe(1);
-  });
 
-  it('正規化のオプションを組み合わせてもキーが列挙から消えない', () => {
-    const obj = createCaseInsensitiveObject({
-      target: { か゛: 1 },
-      ignoreCompatibility: true,
-      ignoreSpace: true,
-      ignoreDakuon: true,
-      enumeratedKey: 'transformed',
+    it('ignoreWidthは互換文字までは変換しない', () => {
+      const obj = createCaseInsensitiveObject({
+        target: { '㈱': 1 },
+        ignoreWidth: true,
+      });
+      expect(obj['(株)']).toBeUndefined();
     });
-    expect(Object.keys(obj)).toEqual(['か']);
-    expect(obj['が']).toBe(1);
+
+    it('ignoreKanaでひらがな・カタカナの違いを無視する', () => {
+      const obj = createCaseInsensitiveObject({
+        target: { アイテム: 1 },
+        ignoreKana: true,
+      });
+      expect(obj['あいてむ']).toBe(1);
+    });
+
+    it('ignoreWidthとignoreKanaを組み合わせると半角カタカナもそろう', () => {
+      const obj = createCaseInsensitiveObject({
+        target: { ｱｲﾃﾑ: 1 },
+        ignoreWidth: true,
+        ignoreKana: true,
+      });
+      expect(obj['あいてむ']).toBe(1);
+      expect(obj['アイテム']).toBe(1);
+    });
+
+    it('ignoreSpaceで空白を無視する', () => {
+      const obj = createCaseInsensitiveObject({
+        target: { 'First Name': 1 },
+        ignoreSpace: true,
+      });
+      expect(obj['firstname']).toBe(1);
+    });
+
+    it('ignoreSeparatorsでハイフン・アンダースコア・ピリオドを無視する', () => {
+      const obj = createCaseInsensitiveObject({
+        target: { 'content-type': 1 },
+        ignoreSeparators: true,
+      });
+      expect(obj['Content_Type']).toBe(1);
+      expect(obj['contentType']).toBe(1);
+      expect(obj['content.type']).toBe(1);
+    });
+
+    it('ignoreSeparatorsは空白を無視しない', () => {
+      const obj = createCaseInsensitiveObject({
+        target: { 'content-type': 1 },
+        ignoreSeparators: true,
+      });
+      expect(obj['content type']).toBeUndefined();
+    });
+
+    it('ignoreSeparatorsとignoreWidthを組み合わせると全角の区切り文字も無視する', () => {
+      const obj = createCaseInsensitiveObject({
+        target: { 'content-type': 1 },
+        ignoreSeparators: true,
+        ignoreWidth: true,
+      });
+      expect(obj['ｃｏｎｔｅｎｔ－ｔｙｐｅ']).toBe(1);
+    });
+
+    it('列挙するキーは正規化したキーで変換後のキーを返す', () => {
+      const obj = createCaseInsensitiveObject({
+        target: { 'Content-Type': 1 },
+        ignoreSeparators: true,
+        enumeratedKey: 'transformed',
+      });
+      expect(Object.keys(obj)).toEqual(['contenttype']);
+    });
   });
 
   it('正規化したキーが重なる初期値はgetByNormalizedKeyと同じ値を使う', () => {
@@ -175,7 +237,7 @@ describe('createCaseInsensitiveObject', () => {
   it('凍結後も別名のキーで調べられる', () => {
     const obj = createCaseInsensitiveObject({ target: { foo: 1 } });
     expect(() => Object.freeze(obj)).toThrow(TypeError);
-    expect(Object.hasOwn(obj, 'FOO')).toBe(true);
+    expect(hasOwn(obj, 'FOO')).toBe(true);
     expect(Object.getOwnPropertyDescriptor(obj, 'FOO')?.value).toBe(1);
   });
 });

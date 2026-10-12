@@ -19,8 +19,10 @@ export function _memoizeString(
     } else {
       result = fn(value);
       if (cache.size >= limit) {
-        const [oldest] = cache.keys();
-        cache.delete(oldest);
+        const oldest = cache.keys().next().value;
+        if (oldest !== undefined) {
+          cache.delete(oldest);
+        }
       }
     }
     cache.set(value, result);

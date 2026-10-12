@@ -1,23 +1,14 @@
-import type { NormalizeStringOptions } from '@fringeworks/japanese-text/normalizeString';
 import type {
   CreateKeyTransformObjectOptions,
   KeyTransformObject,
 } from '../createKeyTransformObject';
+import type { NormalizeKeyOptions } from '../types';
 
 /**
  * オプション
  */
-export type CreateCaseInsensitiveObjectOptions<T extends object> = Omit<
-  NormalizeStringOptions,
-  'ignoreCase'
-> &
-  CreateKeyTransformObjectOptions<T> & {
-    /**
-     * 大文字小文字を区別する
-     * @default false
-     */
-    caseSensitive?: boolean;
-  };
+export type CreateCaseInsensitiveObjectOptions<T extends object> =
+  NormalizeKeyOptions & CreateKeyTransformObjectOptions<T>;
 
 /**
  * 本来のキーを全部小文字・全部大文字にした別名

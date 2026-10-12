@@ -10,12 +10,20 @@ describe('getByNormalizedKey', () => {
     expect(getByNormalizedKey({ name: 'Alice' }, 'name')).toBe('Alice');
   });
 
-  it('caseSensitive: trueで大文字・小文字を区別する', () => {
+  it('ignoreCase: falseで大文字・小文字を区別する', () => {
     expect(
-      getByNormalizedKey({ Name: 'Alice' }, 'name', { caseSensitive: true }),
+      getByNormalizedKey({ Name: 'Alice' }, 'name', { ignoreCase: false }),
     ).toBeUndefined();
     expect(
-      getByNormalizedKey({ name: 'Alice' }, 'name', { caseSensitive: true }),
+      getByNormalizedKey({ name: 'Alice' }, 'name', { ignoreCase: false }),
+    ).toBe('Alice');
+  });
+
+  it('ignoreSeparatorsで区切り文字の違いを無視する', () => {
+    expect(
+      getByNormalizedKey({ 'user-name': 'Alice' }, 'userName', {
+        ignoreSeparators: true,
+      }),
     ).toBe('Alice');
   });
 

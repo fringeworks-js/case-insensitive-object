@@ -1,6 +1,5 @@
-import { normalizeString } from '@fringeworks/japanese-text/normalizeString';
 import { _memoizeString } from '../_internal/_memoizeString';
-import { _createNormalizeOptions } from '../_internal/_normalizedKeyHelpers';
+import { _createKeyNormalizer } from '../_internal/_normalizedKeyHelpers';
 import type { KeyTransformObject } from '../createKeyTransformObject';
 import { createKeyTransformObject } from '../createKeyTransformObject';
 import type {
@@ -23,12 +22,12 @@ const CACHE_LIMIT = 128;
 export default function createCaseInsensitiveObject<
   T extends object = Record<string, unknown>,
 >(
-  options: CreateCaseInsensitiveObjectOptions<T> & { caseSensitive: true },
+  options: CreateCaseInsensitiveObjectOptions<T> & { ignoreCase: false },
 ): KeyTransformObject<T>;
 export default function createCaseInsensitiveObject<
   T extends object = Record<string, unknown>,
 >(
-  options?: CreateCaseInsensitiveObjectOptions<T> & { caseSensitive?: false },
+  options?: CreateCaseInsensitiveObjectOptions<T> & { ignoreCase?: true },
 ): CaseInsensitiveObject<T>;
 export default function createCaseInsensitiveObject<
   T extends object = Record<string, unknown>,
@@ -37,13 +36,9 @@ export default function createCaseInsensitiveObject<T extends object>(
   options: CreateCaseInsensitiveObjectOptions<T> = {},
 ): KeyTransformObject<T> {
   const { target, keys, enumeratedKey, ...rest } = options;
-  const normalizeOptions = _createNormalizeOptions(rest);
 
   // normalizeString は比較的重いので、件数を抑えてキャッシュする
-  const transformKey = _memoizeString(
-    (key) => normalizeString(key, normalizeOptions),
-    CACHE_LIMIT,
-  );
+  const transformKey = _memoizeString(_createKeyNormalizer(rest), CACHE_LIMIT);
 
   return createKeyTransformObject(transformKey, {
     target,

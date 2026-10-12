@@ -1,15 +1,6 @@
-import type { NormalizeStringOptions } from '@fringeworks/japanese-text/normalizeString';
+import type { NormalizeKeyOptions } from '../types';
 
 /**
  * オプション
  */
-export type GetByNormalizedKeyOptions = Omit<
-  NormalizeStringOptions,
-  'ignoreCase'
-> & {
-  /**
-   * 大文字小文字を区別する
-   * @default false
-   */
-  caseSensitive?: boolean;
-};
+export type GetByNormalizedKeyOptions = NormalizeKeyOptions;

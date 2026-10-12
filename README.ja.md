@@ -35,12 +35,12 @@ import createCaseInsensitiveObject from '@fringeworks/case-insensitive-object/cr
 ### `createCaseInsensitiveObject`
 
 ```ts
-createCaseInsensitiveObject<T extends object = Record<string, unknown>>(options: CreateCaseInsensitiveObjectOptions<T> & { caseSensitive: true }): KeyTransformObject<T>
-createCaseInsensitiveObject<T extends object = Record<string, unknown>>(options?: CreateCaseInsensitiveObjectOptions<T> & { caseSensitive?: false }): CaseInsensitiveObject<T>
+createCaseInsensitiveObject<T extends object = Record<string, unknown>>(options: CreateCaseInsensitiveObjectOptions<T> & { ignoreCase: false }): KeyTransformObject<T>
+createCaseInsensitiveObject<T extends object = Record<string, unknown>>(options?: CreateCaseInsensitiveObjectOptions<T> & { ignoreCase?: true }): CaseInsensitiveObject<T>
 createCaseInsensitiveObject<T extends object = Record<string, unknown>>(options?: CreateCaseInsensitiveObjectOptions<T>): KeyTransformObject<T>
 ```
 
-キーの大文字・小文字を区別しないオブジェクト（`Proxy`）を作ります。`ignoreWidth` などの `@fringeworks/japanese-text` の `normalizeString` のオプションを指定すると、全角・半角などの違いも区別しなくなります。
+キーの大文字・小文字を区別しないオブジェクト（`Proxy`）を作ります。`ignoreWidth` などのオプションを指定すると、全角・半角や区切り文字（`-`・`_`・`.`）などの違いも区別しなくなります。
 
 ```ts
 const headers = createCaseInsensitiveObject({
@@ -62,13 +62,16 @@ headers.ACCEPT = '*/*';
 JSON.stringify(headers); // '{"Content-Type":"text/html","Accept":"*/*"}'
 ```
 
-| オプション       | 型                              | 説明                                                                                                                                                                                                                                      |
-| ---------------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `target?`        | `Partial<T>`                    | 初期値を持つオブジェクト。自身の列挙可能なプロパティをコピーし、`target` 自体は変更しない。`target` のキーも本来のキーとして扱う。正規化したキーが重なる場合は、`getByNormalizedKey` と同じく最初のもの（キーと値）を使う                 |
-| `keys?`          | `readonly (keyof T & string)[]` | 本来のキー。`target` のキーより優先する                                                                                                                                                                                                   |
-| `caseSensitive?` | `boolean`                       | `true` の場合、大文字・小文字を区別する。デフォルトは `false`                                                                                                                                                                             |
-| `enumeratedKey?` | `'original' \| 'transformed'`   | 列挙（`Object.keys`、スプレッド、`JSON.stringify` など）で返すキー。`'original'`: 本来のキー（`keys` や `target` にあればそのキー、なければ最初に使われたキー）、`'transformed'`: 正規化したキー（小文字など）。デフォルトは `'original'` |
-| `ignore*` など   | `NormalizeStringOptions`        | `@fringeworks/japanese-text` の `normalizeString` のオプション（`ignoreCase` を除く）。キーの正規化に使う                                                                                                                                 |
+| オプション          | 型                              | 説明                                                                                                                                                                                                                                      |
+| ------------------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `target?`           | `Partial<T>`                    | 初期値を持つオブジェクト。自身の列挙可能なプロパティをコピーし、`target` 自体は変更しない。`target` のキーも本来のキーとして扱う。正規化したキーが重なる場合は、`getByNormalizedKey` と同じく最初のもの（キーと値）を使う                 |
+| `keys?`             | `readonly (keyof T & string)[]` | 本来のキー。`target` のキーより優先する                                                                                                                                                                                                   |
+| `enumeratedKey?`    | `'original' \| 'transformed'`   | 列挙（`Object.keys`、スプレッド、`JSON.stringify` など）で返すキー。`'original'`: 本来のキー（`keys` や `target` にあればそのキー、なければ最初に使われたキー）、`'transformed'`: 正規化したキー（小文字など）。デフォルトは `'original'` |
+| `ignoreCase?`       | `boolean`                       | 英字の大文字・小文字の違いを無視する。デフォルトは `true`                                                                                                                                                                                 |
+| `ignoreWidth?`      | `boolean`                       | 全角・半角の違いを無視する（`Ａ` と `A`、`ｱ` と `ア` など）。互換文字（`㈱` など）は変換しない                                                                                                                                            |
+| `ignoreKana?`       | `boolean`                       | ひらがな・カタカナの違いを無視する                                                                                                                                                                                                        |
+| `ignoreSpace?`      | `boolean`                       | 改行以外の空白文字（半角・全角スペース、タブなど）を無視する                                                                                                                                                                              |
+| `ignoreSeparators?` | `boolean`                       | 区切り文字（`-`・`_`・`.`）を無視する。`content-type` と `contentType` などが同じキーになる                                                                                                                                               |
 
 #### 型
 
@@ -133,10 +136,13 @@ getByNormalizedKey<T extends object>(data: T, key: string, options?: GetByNormal
 getByNormalizedKey({ UserName: 'A' }, 'username'); // 'A'
 ```
 
-| オプション       | 型                       | 説明                                                                                  |
-| ---------------- | ------------------------ | ------------------------------------------------------------------------------------- |
-| `caseSensitive?` | `boolean`                | `true` の場合、大文字・小文字を区別する。デフォルトは `false`                         |
-| `ignore*` など   | `NormalizeStringOptions` | `@fringeworks/japanese-text` の `normalizeString` のオプション（`ignoreCase` を除く） |
+| オプション          | 型        | 説明                                                                                           |
+| ------------------- | --------- | ---------------------------------------------------------------------------------------------- |
+| `ignoreCase?`       | `boolean` | 英字の大文字・小文字の違いを無視する。デフォルトは `true`                                      |
+| `ignoreWidth?`      | `boolean` | 全角・半角の違いを無視する（`Ａ` と `A`、`ｱ` と `ア` など）。互換文字（`㈱` など）は変換しない |
+| `ignoreKana?`       | `boolean` | ひらがな・カタカナの違いを無視する                                                             |
+| `ignoreSpace?`      | `boolean` | 改行以外の空白文字（半角・全角スペース、タブなど）を無視する                                   |
+| `ignoreSeparators?` | `boolean` | 区切り文字（`-`・`_`・`.`）を無視する。`content-type` と `contentType` などが同じキーになる    |
 
 ### `setByNormalizedKey`
 
@@ -152,15 +158,16 @@ setByNormalizedKey({ UserName: 'A' }, 'USERNAME', 'B'); // { UserName: 'B' }
 
 ### 型
 
-| 型                                      | 説明                                                                      |
-| --------------------------------------- | ------------------------------------------------------------------------- |
-| `CreateCaseInsensitiveObjectOptions<T>` | `createCaseInsensitiveObject` のオプション                                |
-| `CaseInsensitiveObject<T>`              | `createCaseInsensitiveObject` が返すオブジェクト（別名にも型が付く）      |
-| `CaseAliases<T>`                        | `T` のキーを全部小文字・全部大文字にした別名                              |
-| `CreateKeyTransformObjectOptions<T>`    | `createKeyTransformObject` のオプション                                   |
-| `KeyTransformObject<T>`                 | `createKeyTransformObject` が返すオブジェクト（定義外のキーは `unknown`） |
-| `GetByNormalizedKeyOptions`             | `getByNormalizedKey` のオプション                                         |
-| `SetByNormalizedKeyOptions`             | `setByNormalizedKey` のオプション                                         |
+| 型                                      | 説明                                                                                                         |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `CreateCaseInsensitiveObjectOptions<T>` | `createCaseInsensitiveObject` のオプション                                                                   |
+| `CaseInsensitiveObject<T>`              | `createCaseInsensitiveObject` が返すオブジェクト（別名にも型が付く）                                         |
+| `CaseAliases<T>`                        | `T` のキーを全部小文字・全部大文字にした別名                                                                 |
+| `CreateKeyTransformObjectOptions<T>`    | `createKeyTransformObject` のオプション                                                                      |
+| `KeyTransformObject<T>`                 | `createKeyTransformObject` が返すオブジェクト（定義外のキーは `unknown`）                                    |
+| `NormalizeKeyOptions`                   | キーの正規化のオプション（`createCaseInsensitiveObject`・`getByNormalizedKey`・`setByNormalizedKey` で共通） |
+| `GetByNormalizedKeyOptions`             | `getByNormalizedKey` のオプション                                                                            |
+| `SetByNormalizedKeyOptions`             | `setByNormalizedKey` のオプション                                                                            |
 
 ## ライセンス
 

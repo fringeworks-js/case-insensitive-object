@@ -38,30 +38,39 @@ describe('createCaseInsensitiveObject の型', () => {
     createCaseInsensitiveObject<Headers>({ keys: ['Acept'] });
   });
 
-  it('caseSensitive: trueでは別名に型が付かない', () => {
+  it('ignoreCase: falseでは別名に型が付かない', () => {
     const sensitive = createCaseInsensitiveObject({
       target: { Name: 'Alice' },
-      caseSensitive: true,
+      ignoreCase: false,
     });
     expectTypeOf(sensitive.Name).toEqualTypeOf<string | undefined>();
     expectTypeOf(sensitive.name).toEqualTypeOf<unknown>();
   });
 
-  it('型引数を明示してもcaseSensitive: trueを指定できる', () => {
+  it('型引数を明示してもignoreCase: falseを指定できる', () => {
     const sensitive = createCaseInsensitiveObject<Headers>({
-      caseSensitive: true,
+      ignoreCase: false,
     });
     expectTypeOf(sensitive.Accept).toEqualTypeOf<string | undefined>();
     expectTypeOf(sensitive.accept).toEqualTypeOf<unknown>();
   });
 
-  it('caseSensitiveがbooleanの場合は別名に型が付かない', () => {
-    const caseSensitive = Math.random() > 0.5;
+  it('ignoreCaseがbooleanの場合は別名に型が付かない', () => {
+    const ignoreCase = Math.random() > 0.5;
     const unknownCase = createCaseInsensitiveObject({
       target: { Name: 'Alice' },
-      caseSensitive,
+      ignoreCase,
     });
     expectTypeOf(unknownCase.name).toEqualTypeOf<unknown>();
+  });
+
+  it('キー向けではないnormalizeStringのオプションは指定できない', () => {
+    // @ts-expect-error 曖昧検索向きのオプションは受け付けない
+    createCaseInsensitiveObject({ ignoreDakuon: true });
+    // @ts-expect-error 互換文字の正規化は受け付けない
+    createCaseInsensitiveObject({ ignoreCompatibility: true });
+    // @ts-expect-error caseSensitive は ignoreCase に変わった
+    createCaseInsensitiveObject({ caseSensitive: true });
   });
 
   it('引数を省略した場合はすべてのキーがunknown', () => {
