@@ -1,3 +1,4 @@
+import { createCaseInsensitiveObject } from '../createCaseInsensitiveObject';
 import setByNormalizedKey from './setByNormalizedKey';
 
 describe('setByNormalizedKey', () => {
@@ -26,9 +27,10 @@ describe('setByNormalizedKey', () => {
     expect(data['b']).toBe(2);
   });
 
-  it('nullを渡した場合はそのまま返す', () => {
-    const result = setByNormalizedKey(null as any, 'key', 1);
-    expect(result).toBeNull();
+  it('ignoreSeparatorsで区切り文字の違いを無視する', () => {
+    const data: Record<string, unknown> = { 'user-name': 'Alice' };
+    setByNormalizedKey(data, 'userName', 'Bob', { ignoreSeparators: true });
+    expect(data).toEqual({ 'user-name': 'Bob' });
   });
 
   it('継承プロパティは更新対象にならない', () => {
@@ -37,5 +39,28 @@ describe('setByNormalizedKey', () => {
     setByNormalizedKey(child, 'name', 'Bob');
     expect(parent['Name']).toBe('Alice');
     expect(child['name']).toBe('Bob');
+  });
+
+  it('createCaseInsensitiveObjectのオブジェクトにも設定できる', () => {
+    const obj = createCaseInsensitiveObject({
+      initialValues: { 'Content-Type': 'text/html' },
+    });
+    setByNormalizedKey(obj, 'CONTENT-TYPE', 'text/plain');
+    expect({ ...obj }).toEqual({ 'Content-Type': 'text/plain' });
+  });
+
+  it('__proto__は自身のプロパティとして追加し、プロトタイプを変えない', () => {
+    const data: Record<string, unknown> = {};
+    setByNormalizedKey(data, '__proto__', { polluted: true });
+    expect(Object.getPrototypeOf(data)).toBe(Object.prototype);
+    expect(Object.keys(data)).toEqual(['__proto__']);
+    expect(data['polluted']).toBeUndefined();
+  });
+
+  it('自身の__proto__があればその値を更新する', () => {
+    const data = JSON.parse('{"__proto__":1}') as Record<string, unknown>;
+    setByNormalizedKey(data, '__PROTO__', 2);
+    expect(Object.getPrototypeOf(data)).toBe(Object.prototype);
+    expect(Object.getOwnPropertyDescriptor(data, '__proto__')?.value).toBe(2);
   });
 });

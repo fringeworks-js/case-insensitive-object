@@ -44,7 +44,7 @@ Creates an object (a `Proxy`) whose keys are case-insensitive. Options such as `
 
 ```ts
 const headers = createCaseInsensitiveObject({
-  target: { 'Content-Type': 'text/html' },
+  initialValues: { 'Content-Type': 'text/html' },
 });
 headers['content-type']; // 'text/html'
 'CONTENT-TYPE' in headers; // true
@@ -62,30 +62,30 @@ headers.ACCEPT = '*/*';
 JSON.stringify(headers); // '{"Content-Type":"text/html","Accept":"*/*"}'
 ```
 
-| Option              | Type                            | Description                                                                                                                                                                                                                                                                                    |
-| ------------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `target?`           | `Partial<T>`                    | An object with the initial values. Its own enumerable properties are copied, and `target` itself is never modified. The keys of `target` are also treated as original keys. When several keys normalize to the same key, the first one (its key and value) is used, as in `getByNormalizedKey` |
-| `keys?`             | `readonly (keyof T & string)[]` | The original keys. They take precedence over the keys of `target`                                                                                                                                                                                                                              |
-| `enumeratedKey?`    | `'original' \| 'transformed'`   | The keys returned when enumerating (`Object.keys`, spread, `JSON.stringify` and so on). `'original'`: the original key (the one in `keys` or `target`, or else the key used first); `'transformed'`: the normalized key (lowercase, for example). Defaults to `'original'`                     |
-| `ignoreCase?`       | `boolean`                       | Ignores uppercase and lowercase differences. Defaults to `true`                                                                                                                                                                                                                                |
-| `ignoreWidth?`      | `boolean`                       | Ignores full-width and half-width differences (`Ａ` and `A`, `ｱ` and `ア`, ...). Compatibility characters such as `㈱` are not converted                                                                                                                                                       |
-| `ignoreKana?`       | `boolean`                       | Ignores hiragana and katakana differences                                                                                                                                                                                                                                                      |
-| `ignoreSpace?`      | `boolean`                       | Ignores whitespace other than line breaks (half-width and full-width spaces, tabs, ...)                                                                                                                                                                                                        |
-| `ignoreSeparators?` | `boolean`                       | Ignores separators (`-`, `_` and `.`), so `content-type` and `contentType` become the same key                                                                                                                                                                                                 |
+| Option              | Type                            | Description                                                                                                                                                                                                                                                                                                  |
+| ------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `initialValues?`    | `Partial<T>`                    | An object with the initial values. Its own enumerable properties are copied, and `initialValues` itself is never modified. The keys of `initialValues` are also treated as original keys. When several keys normalize to the same key, the first one (its key and value) is used, as in `getByNormalizedKey` |
+| `keys?`             | `readonly (keyof T & string)[]` | The original keys. They take precedence over the keys of `initialValues`                                                                                                                                                                                                                                     |
+| `enumeratedKey?`    | `'original' \| 'transformed'`   | The keys returned when enumerating (`Object.keys`, spread, `JSON.stringify` and so on). `'original'`: the original key (the one in `keys` or `initialValues`, or else the key used first); `'transformed'`: the normalized key (lowercase, for example). Defaults to `'original'`                            |
+| `ignoreCase?`       | `boolean`                       | Ignores uppercase and lowercase differences. Defaults to `true`                                                                                                                                                                                                                                              |
+| `ignoreWidth?`      | `boolean`                       | Ignores full-width and half-width differences (`Ａ` and `A`, `ｱ` and `ア`, ...). Compatibility characters such as `㈱` are not converted                                                                                                                                                                     |
+| `ignoreKana?`       | `boolean`                       | Ignores hiragana and katakana differences                                                                                                                                                                                                                                                                    |
+| `ignoreSpace?`      | `boolean`                       | Ignores whitespace other than line breaks (half-width and full-width spaces, tabs, ...)                                                                                                                                                                                                                      |
+| `ignoreSeparators?` | `boolean`                       | Ignores separators (`-`, `_` and `.`), so `content-type` and `contentType` become the same key                                                                                                                                                                                                               |
 
 #### Types
 
-The type of the returned object is inferred from `target` or given as the type parameter `T`. The keys of `T` have their value types, and other keys are `unknown`. When keys are case-insensitive, the all-lowercase and all-uppercase aliases of the original keys (`content-type`, `CONTENT-TYPE`) have the value types too. Other aliases (`Content-type`, full-width forms and so on) are `unknown`.
+The type of the returned object is inferred from `initialValues` or given as the type parameter `T`. The keys of `T` have their value types, and other keys are `unknown`. When keys are case-insensitive, the all-lowercase and all-uppercase aliases of the original keys (`content-type`, `CONTENT-TYPE`) have the value types too. Other aliases (`Content-type`, full-width forms and so on) are `unknown`.
 
 ```ts
 const headers = createCaseInsensitiveObject({
-  target: { 'Content-Type': 'text/html' },
+  initialValues: { 'Content-Type': 'text/html' },
 });
 headers['content-type']; // string | undefined
 headers['Content-type']; // unknown
 ```
 
-To give types to keys that are not in `target`, specify the type parameter and `keys`. With the type parameter, the keys of `target` are also limited to the keys of `T`.
+To give types to keys that are not in `initialValues`, specify the type parameter and `keys`. Without the type parameter, `T` is inferred from `initialValues`, so `keys` can only contain keys of `initialValues`. With the type parameter, the keys of `initialValues` are also limited to the keys of `T`.
 
 #### Reflecting changes and limitations
 
@@ -96,6 +96,7 @@ The object works as a dictionary, so it has the following limitations. They are 
 - Every property is a data property that is writable, enumerable and configurable. Defining an accessor or a property with `configurable: false` throws a `TypeError`. `writable` and `enumerable` are ignored
 - `Object.preventExtensions`, `Object.seal` and `Object.freeze` throw a `TypeError`
 - The prototype is `null`, so methods such as `toString` and `hasOwnProperty` are not available (use `Object.hasOwn` and the like instead)
+- Aliases are treated as the same key, so a function set under an alias of `then` or `toJSON` (such as `Then` or `TOJSON`) is called by `await` or `JSON.stringify` (with `ignoreSeparators`, `to_json` and the like as well)
 
 ### `createKeyTransformObject`
 
@@ -120,7 +121,7 @@ Since the transformation is an arbitrary function, aliases have no types. The ke
 
 | Option           | Type                            | Description                           |
 | ---------------- | ------------------------------- | ------------------------------------- |
-| `target?`        | `Partial<T>`                    | Same as `createCaseInsensitiveObject` |
+| `initialValues?` | `Partial<T>`                    | Same as `createCaseInsensitiveObject` |
 | `keys?`          | `readonly (keyof T & string)[]` | Same as `createCaseInsensitiveObject` |
 | `enumeratedKey?` | `'original' \| 'transformed'`   | Same as `createCaseInsensitiveObject` |
 
@@ -150,7 +151,7 @@ getByNormalizedKey({ UserName: 'A' }, 'username'); // 'A'
 setByNormalizedKey<T extends object>(data: T, key: string, value: T[keyof T], options?: SetByNormalizedKeyOptions): T
 ```
 
-Compares keys after normalizing them and sets the value on the matching property (mutating). When no key matches, adds a property with `key` as is. Returns `data`. The options are the same as `getByNormalizedKey`. Like `getByNormalizedKey`, every call normalizes all the keys of `data`.
+Compares keys after normalizing them and sets the value on the matching property (mutating). When no key matches, adds a property with `key` as is (`__proto__` is also added as an own property, without changing the prototype). Returns `data`. The options are the same as `getByNormalizedKey`. Like `getByNormalizedKey`, every call normalizes all the keys of `data`.
 
 ```ts
 setByNormalizedKey({ UserName: 'A' }, 'USERNAME', 'B'); // { UserName: 'B' }

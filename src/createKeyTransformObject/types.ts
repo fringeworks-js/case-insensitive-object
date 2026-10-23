@@ -4,10 +4,10 @@
 export type CreateKeyTransformObjectOptions<T extends object> = {
   /**
    * 初期値を持つオブジェクト\
-   * 自身の列挙可能なプロパティをコピーする。target 自体は変更しない。
-   * target のキーも本来のキーとして扱う
+   * 自身の列挙可能なプロパティをコピーする。initialValues 自体は変更しない。
+   * initialValues のキーも本来のキーとして扱う
    */
-  target?: Partial<T>;
+  initialValues?: Partial<T>;
 
   /**
    * 本来のキー\
@@ -18,7 +18,7 @@ export type CreateKeyTransformObjectOptions<T extends object> = {
   /**
    * 列挙するときのキーの種別
    *
-   * - 'original': 本来のキー（keys や target にあればそのキー、なければ最初に使われたキー）
+   * - 'original': 本来のキー（keys や initialValues にあればそのキー、なければ最初に使われたキー）
    * - 'transformed': 変換後のキー
    * @default 'original'
    */

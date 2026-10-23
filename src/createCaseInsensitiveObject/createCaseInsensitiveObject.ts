@@ -35,13 +35,13 @@ export default function createCaseInsensitiveObject<
 export default function createCaseInsensitiveObject<T extends object>(
   options: CreateCaseInsensitiveObjectOptions<T> = {},
 ): KeyTransformObject<T> {
-  const { target, keys, enumeratedKey, ...rest } = options;
+  const { initialValues, keys, enumeratedKey, ...rest } = options;
 
   // normalizeString は比較的重いので、件数を抑えてキャッシュする
   const transformKey = _memoizeString(_createKeyNormalizer(rest), CACHE_LIMIT);
 
   return createKeyTransformObject(transformKey, {
-    target,
+    initialValues,
     keys,
     enumeratedKey,
   });

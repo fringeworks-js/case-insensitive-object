@@ -4,10 +4,10 @@ type Headers = { 'Content-Type': string; Accept: string };
 
 describe('createCaseInsensitiveObject の型', () => {
   const obj = createCaseInsensitiveObject({
-    target: { 'Content-Type': 'text/html', Count: 1 },
+    initialValues: { 'Content-Type': 'text/html', Count: 1 },
   });
 
-  it('targetから推論したキーは、本来のキー・小文字・大文字で型が付く', () => {
+  it('initialValuesから推論したキーは、本来のキー・小文字・大文字で型が付く', () => {
     expectTypeOf(obj['Content-Type']).toEqualTypeOf<string | undefined>();
     expectTypeOf(obj['content-type']).toEqualTypeOf<string | undefined>();
     expectTypeOf(obj['CONTENT-TYPE']).toEqualTypeOf<string | undefined>();
@@ -25,7 +25,7 @@ describe('createCaseInsensitiveObject の型', () => {
     obj['x-foo'] = 1;
   });
 
-  it('型引数とkeysでtargetにないキーにも型が付く', () => {
+  it('型引数とkeysでinitialValuesにないキーにも型が付く', () => {
     const headers = createCaseInsensitiveObject<Headers>({
       keys: ['Content-Type', 'Accept'],
     });
@@ -40,7 +40,7 @@ describe('createCaseInsensitiveObject の型', () => {
 
   it('ignoreCase: falseでは別名に型が付かない', () => {
     const sensitive = createCaseInsensitiveObject({
-      target: { Name: 'Alice' },
+      initialValues: { Name: 'Alice' },
       ignoreCase: false,
     });
     expectTypeOf(sensitive.Name).toEqualTypeOf<string | undefined>();
@@ -58,7 +58,7 @@ describe('createCaseInsensitiveObject の型', () => {
   it('ignoreCaseがbooleanの場合は別名に型が付かない', () => {
     const ignoreCase = Math.random() > 0.5;
     const unknownCase = createCaseInsensitiveObject({
-      target: { Name: 'Alice' },
+      initialValues: { Name: 'Alice' },
       ignoreCase,
     });
     expectTypeOf(unknownCase.name).toEqualTypeOf<unknown>();

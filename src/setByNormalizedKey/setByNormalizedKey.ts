@@ -10,6 +10,7 @@ import type { SetByNormalizedKeyOptions } from './types';
  * @param key 設定先のキー
  * @param value 設定する値
  * @param options オプション
+ * @returns data
  */
 export default function setByNormalizedKey<T extends object>(
   data: T,
@@ -20,9 +21,24 @@ export default function setByNormalizedKey<T extends object>(
   if (!data) {
     return data;
   }
-  const existingKey =
-    _findNormalizedKey(data, key, _createKeyNormalizer(options)) ?? key;
-  (data as Record<string, unknown>)[existingKey] = value;
+  const existingKey = _findNormalizedKey(
+    data,
+    key,
+    _createKeyNormalizer(options),
+  );
+  if (existingKey !== undefined) {
+    (data as Record<string, unknown>)[existingKey] = value;
+  } else if (key === '__proto__') {
+    // 代入するとプロトタイプが書き換わるので、自身のプロパティとして定義する
+    Object.defineProperty(data, key, {
+      value,
+      writable: true,
+      enumerable: true,
+      configurable: true,
+    });
+  } else {
+    (data as Record<string, unknown>)[key] = value;
+  }
 
   return data;
 }

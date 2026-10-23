@@ -14,7 +14,7 @@ describe('createKeyTransformObject', () => {
 
     it('初期値も変換したキーでアクセスできる', () => {
       const obj = createKeyTransformObject(toLower, {
-        target: { Name: 'Alice' },
+        initialValues: { Name: 'Alice' },
       });
       expect(obj['name']).toBe('Alice');
       expect(obj['NAME']).toBe('Alice');
@@ -62,20 +62,20 @@ describe('createKeyTransformObject', () => {
     });
   });
 
-  describe('target', () => {
-    it('targetを変更しない', () => {
-      const target: Record<string, unknown> = { Name: 'Alice' };
-      const obj = createKeyTransformObject(toLower, { target });
+  describe('initialValues', () => {
+    it('initialValuesを変更しない', () => {
+      const initialValues: Record<string, unknown> = { Name: 'Alice' };
+      const obj = createKeyTransformObject(toLower, { initialValues });
       obj['Age'] = 30;
       delete obj['name'];
-      expect(target).toEqual({ Name: 'Alice' });
+      expect(initialValues).toEqual({ Name: 'Alice' });
     });
 
-    it('作成後にtargetを変更してもオブジェクトに影響しない', () => {
-      const target: Record<string, unknown> = { Name: 'Alice' };
-      const obj = createKeyTransformObject(toLower, { target });
-      target['Age'] = 30;
-      delete target['Name'];
+    it('作成後にinitialValuesを変更してもオブジェクトに影響しない', () => {
+      const initialValues: Record<string, unknown> = { Name: 'Alice' };
+      const obj = createKeyTransformObject(toLower, { initialValues });
+      initialValues['Age'] = 30;
+      delete initialValues['Name'];
       expect(obj['name']).toBe('Alice');
       expect('age' in obj).toBe(false);
     });
@@ -84,7 +84,7 @@ describe('createKeyTransformObject', () => {
       const parent = { inherited: 'yes' };
       const child = Object.create(parent) as Record<string, unknown>;
       child['own'] = 'own';
-      const obj = createKeyTransformObject(toLower, { target: child });
+      const obj = createKeyTransformObject(toLower, { initialValues: child });
       expect(obj['own']).toBe('own');
       expect(obj['inherited']).toBeUndefined();
     });
@@ -93,14 +93,14 @@ describe('createKeyTransformObject', () => {
       const sym = Symbol('key');
       const obj = createKeyTransformObject<Record<string | symbol, unknown>>(
         toLower,
-        { target: { [sym]: 'value' } },
+        { initialValues: { [sym]: 'value' } },
       );
       expect(obj[sym]).toBe('value');
     });
 
     it('変換後のキーが重なる初期値は最初のキーと値を使う', () => {
       const obj = createKeyTransformObject(toLower, {
-        target: { Foo: 1, FOO: 2 },
+        initialValues: { Foo: 1, FOO: 2 },
         enumeratedKey: 'original',
       });
       expect(obj['foo']).toBe(1);
@@ -111,14 +111,14 @@ describe('createKeyTransformObject', () => {
   describe('列挙', () => {
     it('既定では最初に使われたキーを列挙する', () => {
       const obj = createKeyTransformObject(toLower, {
-        target: { Name: 'Alice', AGE: 30 },
+        initialValues: { Name: 'Alice', AGE: 30 },
       });
       expect(Object.keys(obj)).toEqual(['Name', 'AGE']);
     });
 
     it('enumeratedKey: transformedで変換後のキーを列挙する', () => {
       const obj = createKeyTransformObject(toLower, {
-        target: { Name: 'Alice', AGE: 30 },
+        initialValues: { Name: 'Alice', AGE: 30 },
         enumeratedKey: 'transformed',
       });
       expect(Object.keys(obj)).toEqual(['name', 'age']);
@@ -135,9 +135,36 @@ describe('createKeyTransformObject', () => {
       expect(obj['name']).toBe('Bob');
     });
 
+    it.each(['original', 'transformed'] as const)(
+      'enumeratedKey: %sで列挙したキーで調べるときはtransformKeyを呼ばない',
+      (enumeratedKey) => {
+        const transformKey = vi.fn(toLower);
+        const obj = createKeyTransformObject(transformKey, {
+          initialValues: { Name: 'Alice' },
+          enumeratedKey,
+        });
+        obj['AGE'] = 30;
+        transformKey.mockClear();
+        void { ...obj };
+        void Object.entries(obj);
+        expect(transformKey).not.toHaveBeenCalled();
+      },
+    );
+
+    it('削除したプロパティのキーは変換し直す', () => {
+      const transformKey = vi.fn(toLower);
+      const obj = createKeyTransformObject(transformKey, {
+        initialValues: { Name: 'Alice' },
+      });
+      delete obj['Name'];
+      transformKey.mockClear();
+      expect('Name' in obj).toBe(false);
+      expect(transformKey).toHaveBeenCalledWith('Name');
+    });
+
     it('スプレッドとJSON.stringifyで値を取り出せる', () => {
       const obj = createKeyTransformObject(toLower, {
-        target: { Name: 'Alice' },
+        initialValues: { Name: 'Alice' },
         enumeratedKey: 'original',
       });
       expect({ ...obj }).toEqual({ Name: 'Alice' });
@@ -219,11 +246,11 @@ describe('createKeyTransformObject', () => {
       expect(Object.keys(obj)).toEqual([]);
     });
 
-    it('targetのキーよりkeysのキーを優先する', () => {
-      // 型で定義するとtargetのキーも本来のキーに限られるので、型は定義しない
+    it('initialValuesのキーよりkeysのキーを優先する', () => {
+      // 型で定義するとinitialValuesのキーも本来のキーに限られるので、型は定義しない
       const obj = createKeyTransformObject<Record<string, unknown>>(toLower, {
         keys: ['Content-Type'],
-        target: { 'content-type': 'text/html' },
+        initialValues: { 'content-type': 'text/html' },
       });
       expect({ ...obj }).toEqual({ 'Content-Type': 'text/html' });
     });
@@ -236,9 +263,9 @@ describe('createKeyTransformObject', () => {
       expect(Object.keys(obj)).toEqual(['Name']);
     });
 
-    it('targetのキーも本来のキーとして扱う', () => {
+    it('initialValuesのキーも本来のキーとして扱う', () => {
       const obj = createKeyTransformObject(toLower, {
-        target: { Name: 'Alice' },
+        initialValues: { Name: 'Alice' },
       });
       delete obj['NAME'];
       obj['name'] = 'Bob';
@@ -330,12 +357,16 @@ describe('createKeyTransformObject', () => {
     });
 
     it('Object.sealはTypeErrorになる', () => {
-      const obj = createKeyTransformObject(toLower, { target: { a: 1 } });
+      const obj = createKeyTransformObject(toLower, {
+        initialValues: { a: 1 },
+      });
       expect(() => Object.seal(obj)).toThrow(TypeError);
     });
 
     it('Object.freezeはTypeErrorになり、その後も別名のキーで調べられる', () => {
-      const obj = createKeyTransformObject(toLower, { target: { foo: 1 } });
+      const obj = createKeyTransformObject(toLower, {
+        initialValues: { foo: 1 },
+      });
       expect(() => Object.freeze(obj)).toThrow(TypeError);
       expect(hasOwn(obj, 'FOO')).toBe(true);
       obj['FOO'] = 2;

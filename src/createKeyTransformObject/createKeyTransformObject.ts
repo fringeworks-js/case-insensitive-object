@@ -8,7 +8,7 @@ import type {
  */
 type Entry = {
   /**
-   * 本来のキー（keys や target にあればそのキー、なければ最初に使われたキー）
+   * 本来のキー（keys や initialValues にあればそのキー、なければ最初に使われたキー）
    */
   key: string | symbol;
   value: unknown;
@@ -28,7 +28,7 @@ const createDataDescriptor = (value: unknown): PropertyDescriptor => ({
 /**
  * 変換されたキーでプロパティを管理するオブジェクトのproxyを作る
  *
- * プロパティは proxy の内部で管理し、target には書き込まない。
+ * プロパティは proxy の内部で管理し、initialValues には書き込まない。
  * 別名のキーでも一貫して動作させるため、次の制限がある
  *
  * - プロパティは常に書き換え・列挙・再定義が可能なデータプロパティ。
@@ -46,14 +46,19 @@ export default function createKeyTransformObject<
   transformKey: (key: string) => string,
   options: CreateKeyTransformObjectOptions<T> = {},
 ): KeyTransformObject<T> {
-  const { target, keys = [], enumeratedKey = 'original' } = options;
+  const { initialValues, keys = [], enumeratedKey = 'original' } = options;
 
   // 変換後のキー → プロパティ
   const entries = new Map<string | symbol, Entry>();
   // 変換後のキー → 本来のキー
   const originalKeys = new Map<string | symbol, string | symbol>();
+  // 格納しているプロパティの本来のキー・変換後のキー → 変換後のキー
+  // 列挙したキーで調べるときに、transformKey を呼ばずに済ませる
+  const knownEntryKeys = new Map<string, string>();
   const toEntryKey = (key: string | symbol) =>
-    typeof key === 'string' ? transformKey(key) : key;
+    typeof key === 'string'
+      ? (knownEntryKeys.get(key) ?? transformKey(key))
+      : key;
   // 変換後のキーが重なる場合は、getByNormalizedKey に合わせて最初のものを使う
   const addOriginalKey = (key: string | symbol) => {
     const entryKey = toEntryKey(key);
@@ -67,20 +72,33 @@ export default function createKeyTransformObject<
     if (entry) {
       entry.value = value;
     } else {
-      entries.set(entryKey, {
-        key: originalKeys.get(entryKey) ?? key,
-        value,
-      });
+      const originalKey = originalKeys.get(entryKey) ?? key;
+      entries.set(entryKey, { key: originalKey, value });
+      if (typeof originalKey === 'string' && typeof entryKey === 'string') {
+        knownEntryKeys.set(originalKey, entryKey);
+        knownEntryKeys.set(entryKey, entryKey);
+      }
+    }
+  };
+  const deleteValue = (key: string | symbol) => {
+    const entryKey = toEntryKey(key);
+    const entry = entries.get(entryKey);
+    if (entry) {
+      entries.delete(entryKey);
+      if (typeof entry.key === 'string' && typeof entryKey === 'string') {
+        knownEntryKeys.delete(entry.key);
+        knownEntryKeys.delete(entryKey);
+      }
     }
   };
 
-  // 本来のキーを登録（keys を target より優先する）
+  // 本来のキーを登録（keys を initialValues より優先する）
   for (const key of keys) {
     addOriginalKey(key);
   }
   // 初期値をコピー
-  if (target) {
-    const source = target as Record<string | symbol, unknown>;
+  if (initialValues) {
+    const source = initialValues as Record<string | symbol, unknown>;
     for (const key of Reflect.ownKeys(source)) {
       if (Object.prototype.propertyIsEnumerable.call(source, key)) {
         addOriginalKey(key);
@@ -115,7 +133,7 @@ export default function createKeyTransformObject<
     },
     // プロパティの削除時
     deleteProperty(_, key) {
-      entries.delete(toEntryKey(key));
+      deleteValue(key);
       return true;
     },
     // プロパティの列挙時

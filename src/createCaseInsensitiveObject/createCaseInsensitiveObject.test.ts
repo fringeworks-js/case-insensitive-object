@@ -4,7 +4,9 @@ import createCaseInsensitiveObject from './createCaseInsensitiveObject';
 
 describe('createCaseInsensitiveObject', () => {
   it('デフォルトで大文字・小文字を区別しないキーでアクセスできる', () => {
-    const obj = createCaseInsensitiveObject({ target: { Name: 'Alice' } });
+    const obj = createCaseInsensitiveObject({
+      initialValues: { Name: 'Alice' },
+    });
     expect(obj['name']).toBe('Alice');
     expect(obj['NAME']).toBe('Alice');
     expect(obj['Name']).toBe('Alice');
@@ -18,14 +20,16 @@ describe('createCaseInsensitiveObject', () => {
   });
 
   it('inオペレータで大文字・小文字を区別しない検索ができる', () => {
-    const obj = createCaseInsensitiveObject({ target: { Name: 'Alice' } });
+    const obj = createCaseInsensitiveObject({
+      initialValues: { Name: 'Alice' },
+    });
     expect('name' in obj).toBe(true);
     expect('NAME' in obj).toBe(true);
   });
 
   it('deleteで大文字・小文字を区別せず削除できる', () => {
     const obj = createCaseInsensitiveObject<Record<string, unknown>>({
-      target: { Name: 'Alice' },
+      initialValues: { Name: 'Alice' },
     });
     delete obj['name'];
     expect(obj['Name']).toBeUndefined();
@@ -33,7 +37,7 @@ describe('createCaseInsensitiveObject', () => {
 
   it('ignoreCase: falseで大文字・小文字を区別する', () => {
     const obj = createCaseInsensitiveObject({
-      target: { Name: 'Alice' },
+      initialValues: { Name: 'Alice' },
       ignoreCase: false,
     });
     expect(obj['name']).toBeUndefined();
@@ -73,7 +77,7 @@ describe('createCaseInsensitiveObject', () => {
 
   it('deleteで主キーと同じケースで削除できる', () => {
     const obj = createCaseInsensitiveObject<Record<string, unknown>>({
-      target: { Name: 'Alice' },
+      initialValues: { Name: 'Alice' },
     });
     delete obj['Name'];
     expect(obj['Name']).toBeUndefined();
@@ -92,11 +96,11 @@ describe('createCaseInsensitiveObject', () => {
     });
   });
 
-  it('targetを変更しない', () => {
-    const target: Record<string, unknown> = { Name: 'Alice' };
-    const obj = createCaseInsensitiveObject({ target });
+  it('initialValuesを変更しない', () => {
+    const initialValues: Record<string, unknown> = { Name: 'Alice' };
+    const obj = createCaseInsensitiveObject({ initialValues });
     obj['age'] = 20;
-    expect(target).toEqual({ Name: 'Alice' });
+    expect(initialValues).toEqual({ Name: 'Alice' });
     expect(obj['NAME']).toBe('Alice');
     expect(obj['AGE']).toBe(20);
   });
@@ -104,7 +108,7 @@ describe('createCaseInsensitiveObject', () => {
   describe('キーの正規化のオプション', () => {
     it('ignoreWidthで全角・半角の違いを無視する', () => {
       const obj = createCaseInsensitiveObject({
-        target: { ＡＢＣ: 1, ｱｲﾃﾑ: 2 },
+        initialValues: { ＡＢＣ: 1, ｱｲﾃﾑ: 2 },
         ignoreWidth: true,
       });
       expect(obj['abc']).toBe(1);
@@ -113,7 +117,7 @@ describe('createCaseInsensitiveObject', () => {
 
     it('ignoreWidthは互換文字までは変換しない', () => {
       const obj = createCaseInsensitiveObject({
-        target: { '㈱': 1 },
+        initialValues: { '㈱': 1 },
         ignoreWidth: true,
       });
       expect(obj['(株)']).toBeUndefined();
@@ -121,7 +125,7 @@ describe('createCaseInsensitiveObject', () => {
 
     it('ignoreKanaでひらがな・カタカナの違いを無視する', () => {
       const obj = createCaseInsensitiveObject({
-        target: { アイテム: 1 },
+        initialValues: { アイテム: 1 },
         ignoreKana: true,
       });
       expect(obj['あいてむ']).toBe(1);
@@ -129,7 +133,7 @@ describe('createCaseInsensitiveObject', () => {
 
     it('ignoreWidthとignoreKanaを組み合わせると半角カタカナもそろう', () => {
       const obj = createCaseInsensitiveObject({
-        target: { ｱｲﾃﾑ: 1 },
+        initialValues: { ｱｲﾃﾑ: 1 },
         ignoreWidth: true,
         ignoreKana: true,
       });
@@ -139,7 +143,7 @@ describe('createCaseInsensitiveObject', () => {
 
     it('ignoreSpaceで空白を無視する', () => {
       const obj = createCaseInsensitiveObject({
-        target: { 'First Name': 1 },
+        initialValues: { 'First Name': 1 },
         ignoreSpace: true,
       });
       expect(obj['firstname']).toBe(1);
@@ -147,7 +151,7 @@ describe('createCaseInsensitiveObject', () => {
 
     it('ignoreSeparatorsでハイフン・アンダースコア・ピリオドを無視する', () => {
       const obj = createCaseInsensitiveObject({
-        target: { 'content-type': 1 },
+        initialValues: { 'content-type': 1 },
         ignoreSeparators: true,
       });
       expect(obj['Content_Type']).toBe(1);
@@ -157,7 +161,7 @@ describe('createCaseInsensitiveObject', () => {
 
     it('ignoreSeparatorsは空白を無視しない', () => {
       const obj = createCaseInsensitiveObject({
-        target: { 'content-type': 1 },
+        initialValues: { 'content-type': 1 },
         ignoreSeparators: true,
       });
       expect(obj['content type']).toBeUndefined();
@@ -165,7 +169,7 @@ describe('createCaseInsensitiveObject', () => {
 
     it('ignoreSeparatorsとignoreWidthを組み合わせると全角の区切り文字も無視する', () => {
       const obj = createCaseInsensitiveObject({
-        target: { 'content-type': 1 },
+        initialValues: { 'content-type': 1 },
         ignoreSeparators: true,
         ignoreWidth: true,
       });
@@ -174,7 +178,7 @@ describe('createCaseInsensitiveObject', () => {
 
     it('列挙するキーは正規化したキーで変換後のキーを返す', () => {
       const obj = createCaseInsensitiveObject({
-        target: { 'Content-Type': 1 },
+        initialValues: { 'Content-Type': 1 },
         ignoreSeparators: true,
         enumeratedKey: 'transformed',
       });
@@ -183,9 +187,9 @@ describe('createCaseInsensitiveObject', () => {
   });
 
   it('正規化したキーが重なる初期値はgetByNormalizedKeyと同じ値を使う', () => {
-    const target = { Foo: 1, FOO: 2 };
-    const obj = createCaseInsensitiveObject({ target });
-    expect(obj['foo']).toBe(getByNormalizedKey(target, 'foo'));
+    const initialValues = { Foo: 1, FOO: 2 };
+    const obj = createCaseInsensitiveObject({ initialValues });
+    expect(obj['foo']).toBe(getByNormalizedKey(initialValues, 'foo'));
     expect(obj['foo']).toBe(1);
   });
 
@@ -204,26 +208,26 @@ describe('createCaseInsensitiveObject', () => {
     expect(Object.keys(obj)).toEqual(['foo']);
   });
 
-  it('getByNormalizedKeyで使った後に変更したtargetのキーを使う', () => {
-    const target: Record<string, unknown> = { Foo: 1 };
-    getByNormalizedKey(target, 'x');
-    delete target['Foo'];
-    target['FOO'] = 1;
+  it('getByNormalizedKeyで使った後に変更したinitialValuesのキーを使う', () => {
+    const initialValues: Record<string, unknown> = { Foo: 1 };
+    getByNormalizedKey(initialValues, 'x');
+    delete initialValues['Foo'];
+    initialValues['FOO'] = 1;
     const obj = createCaseInsensitiveObject({
-      target,
+      initialValues,
       enumeratedKey: 'original',
     });
     expect(Object.keys(obj)).toEqual(['FOO']);
   });
 
-  it('同じtargetから作ったオブジェクトは互いに影響しない', () => {
-    const target = { Foo: 1 };
+  it('同じinitialValuesから作ったオブジェクトは互いに影響しない', () => {
+    const initialValues = { Foo: 1 };
     const a = createCaseInsensitiveObject<Record<string, unknown>>({
-      target,
+      initialValues,
       enumeratedKey: 'original',
     });
     const b = createCaseInsensitiveObject<Record<string, unknown>>({
-      target,
+      initialValues,
       enumeratedKey: 'original',
     });
     delete a['foo'];
@@ -235,7 +239,7 @@ describe('createCaseInsensitiveObject', () => {
   });
 
   it('凍結後も別名のキーで調べられる', () => {
-    const obj = createCaseInsensitiveObject({ target: { foo: 1 } });
+    const obj = createCaseInsensitiveObject({ initialValues: { foo: 1 } });
     expect(() => Object.freeze(obj)).toThrow(TypeError);
     expect(hasOwn(obj, 'FOO')).toBe(true);
     expect(Object.getOwnPropertyDescriptor(obj, 'FOO')?.value).toBe(1);

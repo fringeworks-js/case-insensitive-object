@@ -44,7 +44,7 @@ createCaseInsensitiveObject<T extends object = Record<string, unknown>>(options?
 
 ```ts
 const headers = createCaseInsensitiveObject({
-  target: { 'Content-Type': 'text/html' },
+  initialValues: { 'Content-Type': 'text/html' },
 });
 headers['content-type']; // 'text/html'
 'CONTENT-TYPE' in headers; // true
@@ -62,30 +62,30 @@ headers.ACCEPT = '*/*';
 JSON.stringify(headers); // '{"Content-Type":"text/html","Accept":"*/*"}'
 ```
 
-| オプション          | 型                              | 説明                                                                                                                                                                                                                                      |
-| ------------------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `target?`           | `Partial<T>`                    | 初期値を持つオブジェクト。自身の列挙可能なプロパティをコピーし、`target` 自体は変更しない。`target` のキーも本来のキーとして扱う。正規化したキーが重なる場合は、`getByNormalizedKey` と同じく最初のもの（キーと値）を使う                 |
-| `keys?`             | `readonly (keyof T & string)[]` | 本来のキー。`target` のキーより優先する                                                                                                                                                                                                   |
-| `enumeratedKey?`    | `'original' \| 'transformed'`   | 列挙（`Object.keys`、スプレッド、`JSON.stringify` など）で返すキー。`'original'`: 本来のキー（`keys` や `target` にあればそのキー、なければ最初に使われたキー）、`'transformed'`: 正規化したキー（小文字など）。デフォルトは `'original'` |
-| `ignoreCase?`       | `boolean`                       | 英字の大文字・小文字の違いを無視する。デフォルトは `true`                                                                                                                                                                                 |
-| `ignoreWidth?`      | `boolean`                       | 全角・半角の違いを無視する（`Ａ` と `A`、`ｱ` と `ア` など）。互換文字（`㈱` など）は変換しない                                                                                                                                            |
-| `ignoreKana?`       | `boolean`                       | ひらがな・カタカナの違いを無視する                                                                                                                                                                                                        |
-| `ignoreSpace?`      | `boolean`                       | 改行以外の空白文字（半角・全角スペース、タブなど）を無視する                                                                                                                                                                              |
-| `ignoreSeparators?` | `boolean`                       | 区切り文字（`-`・`_`・`.`）を無視する。`content-type` と `contentType` などが同じキーになる                                                                                                                                               |
+| オプション          | 型                              | 説明                                                                                                                                                                                                                                             |
+| ------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `initialValues?`    | `Partial<T>`                    | 初期値を持つオブジェクト。自身の列挙可能なプロパティをコピーし、`initialValues` 自体は変更しない。`initialValues` のキーも本来のキーとして扱う。正規化したキーが重なる場合は、`getByNormalizedKey` と同じく最初のもの（キーと値）を使う          |
+| `keys?`             | `readonly (keyof T & string)[]` | 本来のキー。`initialValues` のキーより優先する                                                                                                                                                                                                   |
+| `enumeratedKey?`    | `'original' \| 'transformed'`   | 列挙（`Object.keys`、スプレッド、`JSON.stringify` など）で返すキー。`'original'`: 本来のキー（`keys` や `initialValues` にあればそのキー、なければ最初に使われたキー）、`'transformed'`: 正規化したキー（小文字など）。デフォルトは `'original'` |
+| `ignoreCase?`       | `boolean`                       | 英字の大文字・小文字の違いを無視する。デフォルトは `true`                                                                                                                                                                                        |
+| `ignoreWidth?`      | `boolean`                       | 全角・半角の違いを無視する（`Ａ` と `A`、`ｱ` と `ア` など）。互換文字（`㈱` など）は変換しない                                                                                                                                                   |
+| `ignoreKana?`       | `boolean`                       | ひらがな・カタカナの違いを無視する                                                                                                                                                                                                               |
+| `ignoreSpace?`      | `boolean`                       | 改行以外の空白文字（半角・全角スペース、タブなど）を無視する                                                                                                                                                                                     |
+| `ignoreSeparators?` | `boolean`                       | 区切り文字（`-`・`_`・`.`）を無視する。`content-type` と `contentType` などが同じキーになる                                                                                                                                                      |
 
 #### 型
 
-戻り値の型は、`target` から推論するか、型引数 `T` で指定します。`T` にあるキーには値の型が付き、定義外のキーは `unknown` になります。大文字・小文字を区別しない場合は、本来のキーを全部小文字・全部大文字にした別名（`content-type`、`CONTENT-TYPE`）にも値の型が付きます。それ以外の別名（`Content-type` や全角・半角の違いなど）は `unknown` になります。
+戻り値の型は、`initialValues` から推論するか、型引数 `T` で指定します。`T` にあるキーには値の型が付き、定義外のキーは `unknown` になります。大文字・小文字を区別しない場合は、本来のキーを全部小文字・全部大文字にした別名（`content-type`、`CONTENT-TYPE`）にも値の型が付きます。それ以外の別名（`Content-type` や全角・半角の違いなど）は `unknown` になります。
 
 ```ts
 const headers = createCaseInsensitiveObject({
-  target: { 'Content-Type': 'text/html' },
+  initialValues: { 'Content-Type': 'text/html' },
 });
 headers['content-type']; // string | undefined
 headers['Content-type']; // unknown
 ```
 
-`target` にないキーにも型を付けたい場合は、型引数と `keys` を指定してください。型引数を指定すると、`target` のキーも `T` のキーに限られます。
+`initialValues` にないキーにも型を付けたい場合は、型引数と `keys` を指定してください。型引数を省略すると `T` は `initialValues` から推論されるため、`keys` には `initialValues` にあるキーしか指定できません。型引数を指定すると、`initialValues` のキーも `T` のキーに限られます。
 
 #### 変更の反映と制限
 
@@ -96,6 +96,7 @@ headers['Content-type']; // unknown
 - プロパティは常に書き換え・列挙・再定義が可能なデータプロパティになる。アクセサーや `configurable: false` のプロパティを定義すると `TypeError` になる。`writable` と `enumerable` の指定は無視する
 - `Object.preventExtensions`・`Object.seal`・`Object.freeze` は `TypeError` になる
 - プロトタイプは `null` なので、`toString` や `hasOwnProperty` などのメソッドは使えない（`Object.hasOwn` などを使う）
+- 別名も同じキーとして扱うため、`then`・`toJSON` の別名（`Then`・`TOJSON` など）に関数を設定すると、`await` や `JSON.stringify` がその関数を呼ぶ（`ignoreSeparators` を指定した場合は `to_json` なども同じ）
 
 ### `createKeyTransformObject`
 
@@ -120,7 +121,7 @@ obj.NAME; // 'Alice'
 
 | オプション       | 型                              | 説明                                 |
 | ---------------- | ------------------------------- | ------------------------------------ |
-| `target?`        | `Partial<T>`                    | `createCaseInsensitiveObject` と同じ |
+| `initialValues?` | `Partial<T>`                    | `createCaseInsensitiveObject` と同じ |
 | `keys?`          | `readonly (keyof T & string)[]` | `createCaseInsensitiveObject` と同じ |
 | `enumeratedKey?` | `'original' \| 'transformed'`   | `createCaseInsensitiveObject` と同じ |
 
@@ -150,7 +151,7 @@ getByNormalizedKey({ UserName: 'A' }, 'username'); // 'A'
 setByNormalizedKey<T extends object>(data: T, key: string, value: T[keyof T], options?: SetByNormalizedKeyOptions): T
 ```
 
-キーを正規化して比較し、一致したプロパティに値を設定します（破壊的）。一致するキーが無い場合は `key` のままプロパティを追加します。`data` を返します。オプションは `getByNormalizedKey` と同じです。`getByNormalizedKey` と同じく、呼び出すたびに `data` のすべてのキーを正規化します。
+キーを正規化して比較し、一致したプロパティに値を設定します（破壊的）。一致するキーが無い場合は `key` のままプロパティを追加します（`__proto__` もプロトタイプは変えずに自身のプロパティとして追加します）。`data` を返します。オプションは `getByNormalizedKey` と同じです。`getByNormalizedKey` と同じく、呼び出すたびに `data` のすべてのキーを正規化します。
 
 ```ts
 setByNormalizedKey({ UserName: 'A' }, 'USERNAME', 'B'); // { UserName: 'B' }

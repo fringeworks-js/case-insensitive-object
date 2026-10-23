@@ -3,16 +3,16 @@ import createKeyTransformObject from './createKeyTransformObject';
 const toLower = (key: string) => key.toLowerCase();
 
 describe('createKeyTransformObject の型', () => {
-  it('targetから推論したキーに型が付き、別名と定義外のキーはunknown', () => {
+  it('initialValuesから推論したキーに型が付き、別名と定義外のキーはunknown', () => {
     const obj = createKeyTransformObject(toLower, {
-      target: { Name: 'Alice' },
+      initialValues: { Name: 'Alice' },
     });
     expectTypeOf(obj.Name).toEqualTypeOf<string | undefined>();
     expectTypeOf(obj.name).toEqualTypeOf<unknown>();
     expectTypeOf(obj['x-foo']).toEqualTypeOf<unknown>();
   });
 
-  it('型引数とkeysでtargetにないキーにも型が付く', () => {
+  it('型引数とkeysでinitialValuesにないキーにも型が付く', () => {
     const obj = createKeyTransformObject<{ Name: string; Age: number }>(
       toLower,
       { keys: ['Name', 'Age'] },
